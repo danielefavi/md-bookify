@@ -182,6 +182,128 @@ const buffer = await generatePdf(doc, { format: 'Letter', landscape: true });
 await generatePdfToFile(doc, 'output.pdf', { format: 'A4' });
 ```
 
+## MCP Server (AI Agent Integration)
+
+md-bookify includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server, allowing AI agents like Claude Code, Claude Desktop, or any MCP-compatible client to convert Markdown to PDF or EPUB directly as a tool.
+
+### Setup
+
+#### Claude Code
+
+Add to your project's `.mcp.json` or global `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "md-bookify": {
+      "command": "npx",
+      "args": ["-y", "md-bookify-mcp"]
+    }
+  }
+}
+```
+
+#### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "md-bookify": {
+      "command": "npx",
+      "args": ["-y", "md-bookify-mcp"]
+    }
+  }
+}
+```
+
+#### Local development
+
+If you have the repo cloned locally:
+
+```json
+{
+  "mcpServers": {
+    "md-bookify": {
+      "command": "node",
+      "args": ["/path/to/md-bookify/dist/mcp-server.js"]
+    }
+  }
+}
+```
+
+### Available Tools
+
+Once configured, the MCP server exposes 5 tools:
+
+#### `convert_markdown_to_pdf`
+
+Converts a markdown string to a PDF file on disk.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `markdown` | string | yes | Markdown content to convert |
+| `output_path` | string | yes | Path for the output PDF file |
+| `title` | string | no | Document title (default: "Document") |
+| `author` | string | no | Author name |
+| `style` | string | no | Style: `default`, `eink`, `eink-serif`, `elegant`, `serif`, or path to `.css` file |
+| `format` | string | no | Page format: `A4`, `Letter`, or `Legal` (default: `A4`) |
+| `landscape` | boolean | no | Use landscape orientation |
+
+#### `convert_markdown_to_epub`
+
+Converts a markdown string to an EPUB ebook file on disk. Math is rendered as MathML for e-reader compatibility.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `markdown` | string | yes | Markdown content to convert |
+| `output_path` | string | yes | Path for the output EPUB file |
+| `title` | string | no | Document title (default: "Document") |
+| `author` | string | no | Author name |
+| `language` | string | no | Language code, e.g. `en` (default: `en`) |
+| `publisher` | string | no | Publisher name |
+| `description` | string | no | Book description |
+
+#### `convert_file_to_pdf`
+
+Converts a markdown file on disk to PDF. Resolves relative image paths from the source file's directory.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `input_path` | string | yes | Path to the input `.md` or `.markdown` file |
+| `output_path` | string | no | Path for the output PDF (default: same name with `.pdf` extension) |
+| `title` | string | no | Document title (default: filename) |
+| `author` | string | no | Author name |
+| `style` | string | no | Style name or path to `.css` file |
+| `format` | string | no | Page format: `A4`, `Letter`, or `Legal` (default: `A4`) |
+| `landscape` | boolean | no | Use landscape orientation |
+
+#### `convert_file_to_epub`
+
+Converts a markdown file on disk to an EPUB ebook. Resolves relative image paths from the source file's directory.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `input_path` | string | yes | Path to the input `.md` or `.markdown` file |
+| `output_path` | string | no | Path for the output EPUB (default: same name with `.epub` extension) |
+| `title` | string | no | Document title (default: filename) |
+| `author` | string | no | Author name |
+| `language` | string | no | Language code (default: `en`) |
+| `publisher` | string | no | Publisher name |
+| `description` | string | no | Book description |
+| `cover` | string | no | Path to cover image file |
+
+#### `list_styles`
+
+Lists available built-in PDF styles. Takes no parameters.
+
+### Tips
+
+- **File-based tools vs string-based tools**: Use `convert_file_to_pdf` / `convert_file_to_epub` when the markdown already exists on disk — they resolve relative image paths automatically. Use the string-based tools (`convert_markdown_to_*`) when generating markdown content on the fly.
+- **Output directories**: Parent directories are created automatically if they don't exist.
+- **Relative paths**: Paths are resolved relative to the MCP server's working directory.
+
 ## Development
 
 ```bash
@@ -214,6 +336,7 @@ MIT
 - **Entry point**: `dist/index.js`
 - **Types**: `dist/index.d.ts`
 - **CLI binary**: `dist/bin/md-bookify.js` (registered as `md-bookify`)
+- **MCP server binary**: `dist/mcp-server.js` (registered as `md-bookify-mcp`)
 
 ### Conversion Pipeline
 
@@ -386,6 +509,7 @@ src/
   epub.ts           — HTML → EPUB (epub-gen-memory) + local image file:// rewriting + remote image fetching
   styles.ts         — CSS constants, style resolution, KaTeX CSS loader
   styles/           — built-in .css theme files (PDF only)
+  mcp-server.ts     — MCP server (5 tools: convert/list)
 bin/
   md-bookify.ts     — CLI entry point (Commander, with `epub` subcommand)
 tests/              — Vitest test files
@@ -394,7 +518,7 @@ tests/              — Vitest test files
 ### Build System
 
 - **Bundler**: tsup (ESM only, target node18)
-- **Entry points**: `src/index.ts` → `dist/index.js`, `bin/md-bookify.ts` → `dist/bin/md-bookify.js`
+- **Entry points**: `src/index.ts` → `dist/index.js`, `bin/md-bookify.ts` → `dist/bin/md-bookify.js`, `src/mcp-server.ts` → `dist/mcp-server.js`
 - **Post-build**: `cp -r src/styles dist/` (styles not handled by tsup)
 - **TypeScript**: strict mode with `noUncheckedIndexedAccess`
 
@@ -410,6 +534,8 @@ tests/              — Vitest test files
 | `epub-gen-memory` | EPUB packaging (returns Buffer; uses jszip internally) |
 | `pdf-lib` | PDF metadata (author, creator) post-processing |
 | `commander` | CLI argument parsing |
+| `@modelcontextprotocol/sdk` | MCP server for AI agent integration |
+| `zod` | Schema validation for MCP tool inputs |
 
 ### CLI Invocation Pattern
 
@@ -467,4 +593,7 @@ for (const file of files) {
   const output = await convertMdToPdf(file, { style: 'serif' });
   console.log(`Created: ${output}`);
 }
+
+// MCP server — configure in Claude Code, Claude Desktop, or any MCP client
+// See the "MCP Server" section above for setup instructions
 ```

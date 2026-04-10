@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
-import { readdirSync, existsSync, readFileSync } from 'fs';
-import { fileURLToPath, pathToFileURL } from 'url';
-import { basename, join, dirname, resolve, extname, isAbsolute } from 'path';
-import { readFile, writeFile, mkdtemp, rm, stat } from 'fs/promises';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+import { writeFile, mkdir, stat, mkdtemp, rm, readFile } from 'fs/promises';
+import { isAbsolute, resolve, dirname, basename, join, extname } from 'path';
 import { Renderer, Marked } from 'marked';
 import markedKatex from 'marked-katex-extension';
 import Prism from 'prismjs';
@@ -21,6 +21,8 @@ import 'prismjs/components/prism-yaml.js';
 import 'prismjs/components/prism-sql.js';
 import 'prismjs/components/prism-diff.js';
 import { createRequire } from 'module';
+import { readdirSync, readFileSync, existsSync } from 'fs';
+import { pathToFileURL, fileURLToPath } from 'url';
 import puppeteer from 'puppeteer';
 import { PDFDocument } from 'pdf-lib';
 import { tmpdir } from 'os';
@@ -850,6 +852,17 @@ async function convertMdToPdf(inputPath, options) {
   });
   return outputPath;
 }
+async function convertMarkdownToPdfBuffer(markdown, options) {
+  const html = parseMarkdown(markdown);
+  const title = options?.title ?? "Document";
+  const fullHtml = wrapHtml(html, { title, style: options?.style });
+  return generatePdf(fullHtml, {
+    format: options?.format,
+    landscape: options?.landscape,
+    margin: options?.margin,
+    author: options?.author
+  });
+}
 async function convertMdToEpub(inputPath, options) {
   const html = await parseMarkdownFile(inputPath, { mathOutput: "mathml" });
   const filename = basename(inputPath, inputPath.endsWith(".markdown") ? ".markdown" : ".md");
@@ -867,64 +880,178 @@ async function convertMdToEpub(inputPath, options) {
   });
   return outputPath;
 }
-
-// bin/md-bookify.ts
-function getVersion() {
-  return "2.2.0";
+async function convertMarkdownToEpubBuffer(markdown, options) {
+  const html = parseMarkdown(markdown, { mathOutput: "mathml" });
+  const title = options?.title ?? "Document";
+  const fullHtml = wrapHtmlForEpub(html, { title });
+  return generateEpub(fullHtml, {
+    title,
+    author: options?.author,
+    language: options?.language,
+    publisher: options?.publisher,
+    description: options?.description,
+    cover: options?.cover
+  });
 }
-var program = new Command();
-program.enablePositionalOptions();
-program.name("md-bookify").description("Convert Markdown files to styled PDF documents or EPUB ebooks").version(getVersion()).argument("[input]", "Markdown file to convert").option("-o, --output <path>", "Output PDF file path").option("-t, --title <title>", "Document title").option("--author <name>", "Author name").option("-f, --format <format>", "Page format (A4, Letter, Legal)", "A4").option("--landscape", "Use landscape orientation").option("--margin-top <margin>", "Top margin (e.g. 20mm)").option("--margin-right <margin>", "Right margin (e.g. 20mm)").option("--margin-bottom <margin>", "Bottom margin (e.g. 20mm)").option("--margin-left <margin>", "Left margin (e.g. 20mm)").option("-s, --style <name-or-path>", `Style name (${getBuiltInStyles().join(", ")}) or path to .css file`).option("-l, --list-styles", "List available styles").action(async (input, opts) => {
+
+// src/mcp-server.ts
+function getVersion() {
   try {
-    if (opts.listStyles) {
-      console.log("Available styles:\n");
-      for (const style of getBuiltInStyles()) {
-        console.log(`  ${style}`);
-      }
-      process.exit(0);
-    }
-    if (!input) {
-      program.error("missing required argument: input");
-      return;
-    }
-    const margin = opts.marginTop || opts.marginRight || opts.marginBottom || opts.marginLeft ? {
-      top: opts.marginTop ?? "20mm",
-      right: opts.marginRight ?? "20mm",
-      bottom: opts.marginBottom ?? "20mm",
-      left: opts.marginLeft ?? "20mm"
-    } : void 0;
-    const outputPath = await convertMdToPdf(input, {
-      output: opts.output,
-      title: opts.title,
-      author: opts.author,
-      style: opts.style,
-      format: opts.format,
-      landscape: opts.landscape,
-      margin
-    });
-    console.log(`PDF saved to ${outputPath}`);
-  } catch (err) {
-    console.error(`Error: ${err instanceof Error ? err.message : err}`);
-    process.exit(1);
+    return "2.2.0";
+  } catch {
+    return "0.0.0-dev";
   }
+}
+function resolvePath(p) {
+  return isAbsolute(p) ? p : resolve(process.cwd(), p);
+}
+async function ensureDir(filePath) {
+  await mkdir(dirname(filePath), { recursive: true });
+}
+async function fileSize(filePath) {
+  const s = await stat(filePath);
+  return s.size;
+}
+var server = new McpServer({
+  name: "md-bookify",
+  version: getVersion()
 });
-program.command("epub").description("Convert a Markdown file to an EPUB ebook").argument("<input>", "Markdown file to convert").option("-o, --output <path>", "Output EPUB file path").option("-t, --title <title>", "Document title").option("--author <name>", "Author name").option("--language <code>", "Language code (e.g. en, fr)", "en").option("--publisher <name>", "Publisher metadata").option("--description <text>", "Description metadata").option("--cover <path>", "Path to cover image").action(async (input, opts) => {
-  try {
-    const outputPath = await convertMdToEpub(input, {
-      output: opts.output,
-      title: opts.title,
-      author: opts.author,
-      language: opts.language,
-      publisher: opts.publisher,
-      description: opts.description,
-      cover: opts.cover
-    });
-    console.log(`EPUB saved to ${outputPath}`);
-  } catch (err) {
-    console.error(`Error: ${err instanceof Error ? err.message : err}`);
-    process.exit(1);
+server.tool(
+  "convert_markdown_to_pdf",
+  "Convert markdown content to a PDF file. Supports syntax highlighting, math (KaTeX), and GitHub Flavored Markdown.",
+  {
+    markdown: z.string().describe("Markdown content to convert"),
+    output_path: z.string().describe("Path for the output PDF file"),
+    title: z.string().optional().describe('Document title (default: "Document")'),
+    author: z.string().optional().describe("Author name"),
+    style: z.string().optional().describe("Style: default, eink, eink-serif, elegant, serif, or path to .css file"),
+    format: z.enum(["A4", "Letter", "Legal"]).optional().describe("Page format (default: A4)"),
+    landscape: z.boolean().optional().describe("Use landscape orientation")
+  },
+  async ({ markdown, output_path, title, author, style, format, landscape }) => {
+    try {
+      const outputPath = resolvePath(output_path);
+      await ensureDir(outputPath);
+      const buffer = await convertMarkdownToPdfBuffer(markdown, {
+        title,
+        author,
+        style,
+        format,
+        landscape
+      });
+      await writeFile(outputPath, buffer);
+      return { content: [{ type: "text", text: `PDF saved to ${outputPath} (${buffer.length} bytes)` }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+    }
   }
-});
-program.parse();
-//# sourceMappingURL=md-bookify.js.map
-//# sourceMappingURL=md-bookify.js.map
+);
+server.tool(
+  "convert_markdown_to_epub",
+  "Convert markdown content to an EPUB ebook file. Math is rendered as MathML for e-reader compatibility.",
+  {
+    markdown: z.string().describe("Markdown content to convert"),
+    output_path: z.string().describe("Path for the output EPUB file"),
+    title: z.string().optional().describe('Document title (default: "Document")'),
+    author: z.string().optional().describe("Author name"),
+    language: z.string().optional().describe('Language code, e.g. "en" (default: "en")'),
+    publisher: z.string().optional().describe("Publisher name"),
+    description: z.string().optional().describe("Book description")
+  },
+  async ({ markdown, output_path, title, author, language, publisher, description }) => {
+    try {
+      const outputPath = resolvePath(output_path);
+      await ensureDir(outputPath);
+      const buffer = await convertMarkdownToEpubBuffer(markdown, {
+        title,
+        author,
+        language,
+        publisher,
+        description
+      });
+      await writeFile(outputPath, buffer);
+      return { content: [{ type: "text", text: `EPUB saved to ${outputPath} (${buffer.length} bytes)` }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+    }
+  }
+);
+server.tool(
+  "convert_file_to_pdf",
+  "Convert a markdown file on disk to PDF. Resolves relative image paths from the source directory.",
+  {
+    input_path: z.string().describe("Path to the input .md or .markdown file"),
+    output_path: z.string().optional().describe("Path for the output PDF (default: same name with .pdf extension)"),
+    title: z.string().optional().describe("Document title (default: filename)"),
+    author: z.string().optional().describe("Author name"),
+    style: z.string().optional().describe("Style: default, eink, eink-serif, elegant, serif, or path to .css file"),
+    format: z.enum(["A4", "Letter", "Legal"]).optional().describe("Page format (default: A4)"),
+    landscape: z.boolean().optional().describe("Use landscape orientation")
+  },
+  async ({ input_path, output_path, title, author, style, format, landscape }) => {
+    try {
+      const inputPath = resolvePath(input_path);
+      const result = await convertMdToPdf(inputPath, {
+        output: output_path ? resolvePath(output_path) : void 0,
+        title,
+        author,
+        style,
+        format,
+        landscape
+      });
+      const size = await fileSize(result);
+      return { content: [{ type: "text", text: `PDF saved to ${result} (${size} bytes)` }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+    }
+  }
+);
+server.tool(
+  "convert_file_to_epub",
+  "Convert a markdown file on disk to an EPUB ebook. Resolves relative image paths from the source directory.",
+  {
+    input_path: z.string().describe("Path to the input .md or .markdown file"),
+    output_path: z.string().optional().describe("Path for the output EPUB (default: same name with .epub extension)"),
+    title: z.string().optional().describe("Document title (default: filename)"),
+    author: z.string().optional().describe("Author name"),
+    language: z.string().optional().describe('Language code, e.g. "en" (default: "en")'),
+    publisher: z.string().optional().describe("Publisher name"),
+    description: z.string().optional().describe("Book description"),
+    cover: z.string().optional().describe("Path to cover image file")
+  },
+  async ({ input_path, output_path, title, author, language, publisher, description, cover }) => {
+    try {
+      const inputPath = resolvePath(input_path);
+      const result = await convertMdToEpub(inputPath, {
+        output: output_path ? resolvePath(output_path) : void 0,
+        title,
+        author,
+        language,
+        publisher,
+        description,
+        cover: cover ? resolvePath(cover) : void 0
+      });
+      const size = await fileSize(result);
+      return { content: [{ type: "text", text: `EPUB saved to ${result} (${size} bytes)` }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+    }
+  }
+);
+server.tool(
+  "list_styles",
+  "List available built-in PDF styles.",
+  {},
+  async () => {
+    try {
+      const styles = getBuiltInStyles();
+      return { content: [{ type: "text", text: `Available styles: ${styles.join(", ")}` }] };
+    } catch (error) {
+      return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
+    }
+  }
+);
+var transport = new StdioServerTransport();
+await server.connect(transport);
+//# sourceMappingURL=mcp-server.js.map
+//# sourceMappingURL=mcp-server.js.map

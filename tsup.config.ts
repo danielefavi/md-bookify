@@ -7,6 +7,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'bin/md-bookify': 'bin/md-bookify.ts',
+    'mcp-server': 'src/mcp-server.ts',
   },
   format: ['esm'],
   target: 'node18',
