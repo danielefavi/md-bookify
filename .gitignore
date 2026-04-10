@@ -1,6 +1,8 @@
 node_modules/
 CLAUDE.md
-.claude/
+.claude/settings.local.json
+.claude/todos/
+.claude/statsig/
 test-elements/
 test-markdown-pdf.epub
 test-markdown-pdf.pdf

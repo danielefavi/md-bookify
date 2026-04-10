@@ -138,10 +138,47 @@ async function createTestServer(): Promise<{ client: Client; server: McpServer }
     },
   );
 
-  server.tool('list_styles', 'List available built-in PDF styles.', {}, async () => {
-    const styles = getBuiltInStyles();
-    return { content: [{ type: 'text' as const, text: `Available styles: ${styles.join(', ')}` }] };
-  });
+  server.tool(
+    'convert_markdown_to_pdf_buffer',
+    'Convert markdown to PDF and return as base64.',
+    {
+      markdown: z.string(),
+      title: z.string().optional(),
+      author: z.string().optional(),
+      style: z.string().optional(),
+      format: z.enum(['A4', 'Letter', 'Legal']).optional(),
+      landscape: z.boolean().optional(),
+    },
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    async ({ markdown, title, author, style, format, landscape }) => {
+      try {
+        const buffer = await convertMarkdownToPdfBuffer(markdown, { title, author, style, format, landscape });
+        return {
+          content: [{
+            type: 'resource' as const,
+            resource: {
+              uri: `data:application/pdf;base64,${buffer.toString('base64')}`,
+              mimeType: 'application/pdf',
+              blob: buffer.toString('base64'),
+            },
+          }],
+        };
+      } catch (error) {
+        return { content: [{ type: 'text' as const, text: `Error: ${(error as Error).message}` }], isError: true };
+      }
+    },
+  );
+
+  server.tool(
+    'list_styles',
+    'List available built-in PDF styles.',
+    {},
+    { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    async () => {
+      const styles = getBuiltInStyles();
+      return { content: [{ type: 'text' as const, text: `Available styles: ${styles.join(', ')}` }] };
+    },
+  );
 
   const client = new Client({ name: 'test-client', version: '0.0.0' });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -168,7 +205,7 @@ describe('MCP Server', () => {
     await rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('lists all 5 tools', async () => {
+  it('lists all 6 tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name).sort();
     expect(names).toEqual([
@@ -176,6 +213,7 @@ describe('MCP Server', () => {
       'convert_file_to_pdf',
       'convert_markdown_to_epub',
       'convert_markdown_to_pdf',
+      'convert_markdown_to_pdf_buffer',
       'list_styles',
     ]);
   });
@@ -249,5 +287,24 @@ describe('MCP Server', () => {
     expect(result.isError).toBe(true);
     const text = (result.content as Array<{ type: string; text: string }>)[0].text;
     expect(text).toContain('Error:');
+  });
+
+  it('convert_markdown_to_pdf_buffer returns base64 PDF', async () => {
+    const result = await client.callTool({
+      name: 'convert_markdown_to_pdf_buffer',
+      arguments: { markdown: '# Hello\n\nWorld' },
+    });
+    expect(result.isError).toBeFalsy();
+    const resource = (result.content as Array<{ type: string; resource?: { blob: string; mimeType: string } }>)[0];
+    expect(resource.type).toBe('resource');
+    expect(resource.resource?.mimeType).toBe('application/pdf');
+    const buffer = Buffer.from(resource.resource!.blob, 'base64');
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+  }, 30000);
+
+  it('list_styles has readOnlyHint annotation', async () => {
+    const { tools } = await client.listTools();
+    const listStyles = tools.find(t => t.name === 'list_styles');
+    expect(listStyles?.annotations?.readOnlyHint).toBe(true);
   });
 });
