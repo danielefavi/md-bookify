@@ -3,7 +3,9 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { EPub } from 'epub-gen-memory';
+import { packageEpub, detectMimeFromBytes, MIME_TO_EXT } from './epub-packager.js';
+
+export { detectMimeFromBytes } from './epub-packager.js';
 
 export interface EpubOptions {
   title?: string;
@@ -26,47 +28,10 @@ const TITLE_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
 const BODY_RE = /<body[^>]*>([\s\S]*?)<\/body>/i;
 const IMG_SRC_RE = /<img\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>/gi;
 
-/** Image file extensions that epub-gen-memory can detect via mime.getType() */
+/** Image file extensions recognised by URL-based extension detection. */
 const IMAGE_EXTENSIONS = new Set([
   'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'tiff', 'tif', 'avif',
 ]);
-
-const MIME_TO_EXT: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/gif': 'gif',
-  'image/svg+xml': 'svg',
-  'image/webp': 'webp',
-  'image/bmp': 'bmp',
-  'image/tiff': 'tiff',
-  'image/avif': 'avif',
-};
-
-/**
- * Detect image MIME type from file magic bytes. Returns the MIME string or
- * `null` when the format is not recognised.
- */
-export function detectMimeFromBytes(data: Buffer): string | null {
-  if (data.length < 4) return null;
-  // PNG: 89 50 4E 47
-  if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return 'image/png';
-  // JPEG: FF D8 FF
-  if (data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return 'image/jpeg';
-  // GIF: GIF8
-  if (data[0] === 0x47 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x38) return 'image/gif';
-  // WebP: RIFF....WEBP
-  if (
-    data.length >= 12 &&
-    data[0] === 0x52 && data[1] === 0x49 && data[2] === 0x46 && data[3] === 0x46 &&
-    data[8] === 0x57 && data[9] === 0x45 && data[10] === 0x42 && data[11] === 0x50
-  ) return 'image/webp';
-  // BMP: BM
-  if (data[0] === 0x42 && data[1] === 0x4d) return 'image/bmp';
-  // SVG: text-based, look for <svg in first 1000 bytes
-  const head = data.subarray(0, Math.min(1000, data.length)).toString('utf-8');
-  if (head.includes('<svg')) return 'image/svg+xml';
-  return null;
-}
 
 function urlHasImageExtension(url: string): boolean {
   try {
@@ -105,7 +70,7 @@ export function extractStyleAndBody(html: string): SplitHtml {
 
 /**
  * Walk the HTML for `<img src>` references that point at local files and
- * rewrite them to absolute `file://` URLs. epub-gen-memory's image fetcher
+ * rewrite them to absolute `file://` URLs. the EPUB packager's image fetcher
  * reads `file://` URLs natively via `fs.readFile` and packages them as
  * separate manifest entries inside the EPUB ZIP — that's smaller and faster
  * than data URIs.
@@ -167,7 +132,7 @@ export async function embedLocalImages(html: string, basePath: string): Promise<
 /**
  * Fetch remote images whose URLs lack a recognisable file extension.
  *
- * epub-gen-memory determines each image's MIME type from the URL alone
+ * the EPUB packager determines each image's MIME type from the URL alone
  * (`mime.getType(url)`). When the URL has no extension (common with image
  * services like placehold.co, Unsplash, Gravatar, etc.), the type comes back
  * empty and the image is stored without an extension — EPUB readers then
@@ -176,7 +141,7 @@ export async function embedLocalImages(html: string, basePath: string): Promise<
  * This function downloads those images, detects their real type from the HTTP
  * `Content-Type` header (with a magic-bytes fallback), writes them to a temp
  * directory with the correct extension, and rewrites the `<img src>` to a
- * `file://` URL so epub-gen-memory can pick up the type from the path.
+ * `file://` URL so the EPUB packager can pick up the type from the path.
  *
  * The caller **must** keep the returned `tempDir` alive until
  * `epub.genEpub()` has finished reading the files, then delete it.
@@ -289,7 +254,7 @@ export async function generateEpub(html: string, options?: EpubOptions): Promise
     : body;
 
   // Pre-fetch remote images whose URLs lack a recognisable file extension so
-  // that epub-gen-memory can determine their MIME type from the local path.
+  // that the EPUB packager can determine their MIME type from the local path.
   const { html: fetchedBody, tempDir } = await fetchRemoteImages(processedBody);
   processedBody = fetchedBody;
 
@@ -298,22 +263,16 @@ export async function generateEpub(html: string, options?: EpubOptions): Promise
   const language = options?.language ?? 'en';
 
   try {
-    const epub = new EPub(
-      {
-        title,
-        author,
-        lang: language,
-        ...(options?.publisher ? { publisher: options.publisher } : {}),
-        ...(options?.description ? { description: options.description } : {}),
-        ...(options?.cover ? { cover: options.cover } : {}),
-        ...(css ? { css } : {}),
-        verbose: false,
-      },
-      [{ title, content: processedBody }],
-    );
-
-    const buffer = await epub.genEpub();
-    return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer as unknown as ArrayBuffer);
+    return await packageEpub({
+      title,
+      author,
+      language,
+      publisher: options?.publisher,
+      description: options?.description,
+      cover: options?.cover,
+      css,
+      content: processedBody,
+    });
   } finally {
     if (tempDir) {
       await rm(tempDir, { recursive: true, force: true }).catch(() => {});

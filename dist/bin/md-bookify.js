@@ -25,7 +25,7 @@ import puppeteer from 'puppeteer';
 import { PDFDocument } from 'pdf-lib';
 import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
-import { EPub } from 'epub-gen-memory';
+import JSZip from 'jszip';
 
 var renderer = new Renderer();
 renderer.code = function({ text, lang }) {
@@ -300,10 +300,289 @@ async function generatePdfToFile(html, outputPath, options) {
   const buffer = await generatePdf(html, options);
   await writeFile(outputPath, buffer);
 }
+var MIME_TO_EXT = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+  "image/webp": "webp",
+  "image/bmp": "bmp",
+  "image/tiff": "tiff",
+  "image/avif": "avif"
+};
+var EXT_TO_MIME = Object.fromEntries(
+  Object.entries(MIME_TO_EXT).map(([mime, ext]) => [ext, mime])
+);
+EXT_TO_MIME["jpeg"] = "image/jpeg";
+EXT_TO_MIME["tif"] = "image/tiff";
+function detectMimeFromBytes(data) {
+  if (data.length < 4) return null;
+  if (data[0] === 137 && data[1] === 80 && data[2] === 78 && data[3] === 71) return "image/png";
+  if (data[0] === 255 && data[1] === 216 && data[2] === 255) return "image/jpeg";
+  if (data[0] === 71 && data[1] === 73 && data[2] === 70 && data[3] === 56) return "image/gif";
+  if (data.length >= 12 && data[0] === 82 && data[1] === 73 && data[2] === 70 && data[3] === 70 && data[8] === 87 && data[9] === 69 && data[10] === 66 && data[11] === 80) return "image/webp";
+  if (data[0] === 66 && data[1] === 77) return "image/bmp";
+  const head = data.subarray(0, Math.min(1e3, data.length)).toString("utf-8");
+  if (head.includes("<svg")) return "image/svg+xml";
+  return null;
+}
+function escapeXml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+var IMG_SRC_RE = /<img\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>/gi;
+function mimeFromExtension(filepath) {
+  const ext = extname(filepath).slice(1).toLowerCase();
+  return EXT_TO_MIME[ext] ?? null;
+}
+async function readImageUrl(src) {
+  try {
+    const data = await readFile(new URL(src));
+    return Buffer.isBuffer(data) ? data : Buffer.from(data);
+  } catch (err) {
+    console.warn(`md-bookify: could not read image ${src}: ${err instanceof Error ? err.message : err}`);
+    return null;
+  }
+}
+async function fetchImageUrl(src) {
+  try {
+    const response = await fetch(src, { signal: AbortSignal.timeout(3e4) });
+    if (!response.ok) {
+      console.warn(`md-bookify: could not fetch image ${src}: HTTP ${response.status}`);
+      return null;
+    }
+    const data = Buffer.from(await response.arrayBuffer());
+    const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() ?? null;
+    return { data, contentType };
+  } catch (err) {
+    console.warn(`md-bookify: could not fetch image ${src}: ${err instanceof Error ? err.message : err}`);
+    return null;
+  }
+}
+function detectMime(data, src, contentType) {
+  if (contentType && MIME_TO_EXT[contentType]) return contentType;
+  const detected = detectMimeFromBytes(data);
+  if (detected) return detected;
+  return mimeFromExtension(src);
+}
+async function extractAndEmbedImages(html) {
+  const images = [];
+  const replacements = [];
+  const urlToPath = /* @__PURE__ */ new Map();
+  IMG_SRC_RE.lastIndex = 0;
+  let match;
+  while ((match = IMG_SRC_RE.exec(html)) !== null) {
+    const fullMatch = match[0];
+    const before = match[1] ?? "";
+    const quote = match[2] ?? '"';
+    const src = match[3] ?? "";
+    const after = match[4] ?? "";
+    if (!src || src.startsWith("data:") || src.startsWith("#")) continue;
+    const cached = urlToPath.get(src);
+    if (cached) {
+      const replacement2 = `<img${before}src=${quote}${cached}${quote}${after}>`;
+      replacements.push({ start: match.index, end: match.index + fullMatch.length, replacement: replacement2 });
+      continue;
+    }
+    let data = null;
+    let contentType = null;
+    if (src.startsWith("file://")) {
+      data = await readImageUrl(src);
+    } else if (src.startsWith("http://") || src.startsWith("https://")) {
+      const result2 = await fetchImageUrl(src);
+      if (result2) {
+        data = result2.data;
+        contentType = result2.contentType;
+      }
+    } else if (isAbsolute(src)) {
+      data = await readImageUrl(pathToFileURL(src).href);
+    } else {
+      continue;
+    }
+    if (!data) continue;
+    const mime = detectMime(data, src, contentType);
+    if (!mime) {
+      console.warn(`md-bookify: could not determine image type for ${src}`);
+      continue;
+    }
+    const ext = MIME_TO_EXT[mime];
+    if (!ext) continue;
+    const id = randomUUID();
+    const relativePath = `images/${id}.${ext}`;
+    images.push({ id, extension: ext, mediaType: mime, data });
+    urlToPath.set(src, relativePath);
+    const replacement = `<img${before}src=${quote}${relativePath}${quote}${after}>`;
+    replacements.push({ start: match.index, end: match.index + fullMatch.length, replacement });
+  }
+  if (replacements.length === 0) return { html, images };
+  let result = html;
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const r = replacements[i];
+    result = result.slice(0, r.start) + r.replacement + result.slice(r.end);
+  }
+  return { html: result, images };
+}
+async function loadCoverImage(cover) {
+  let data = null;
+  let contentType = null;
+  if (cover.startsWith("http://") || cover.startsWith("https://")) {
+    const result = await fetchImageUrl(cover);
+    if (!result) return null;
+    data = result.data;
+    contentType = result.contentType;
+  } else {
+    const url = cover.startsWith("file://") ? cover : pathToFileURL(cover).href;
+    data = await readImageUrl(url);
+  }
+  if (!data) return null;
+  const mime = detectMime(data, cover, contentType);
+  if (!mime) {
+    console.warn(`md-bookify: could not determine cover image type for ${cover}`);
+    return null;
+  }
+  const ext = MIME_TO_EXT[mime];
+  if (!ext) return null;
+  return { data, mediaType: mime, extension: ext };
+}
+var CONTAINER_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`;
+function generateContentOpf(d) {
+  const creators = d.authors.map((a) => `    <dc:creator>${escapeXml(a)}</dc:creator>`).join("\n");
+  const imageManifest = d.images.map((img) => `    <item id="image_${img.id}" href="images/${img.id}.${img.extension}" media-type="${img.mediaType}"/>`).join("\n");
+  const coverItem = d.cover ? `
+    <item id="image_cover" href="cover.${d.cover.extension}" media-type="${d.cover.mediaType}"/>` : "";
+  const coverMeta = d.cover ? `
+    <meta name="cover" content="image_cover"/>` : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="BookId">urn:uuid:${d.uuid}</dc:identifier>
+    <dc:title>${escapeXml(d.title)}</dc:title>
+    <dc:language>${escapeXml(d.language)}</dc:language>
+${creators}${d.publisher ? `
+    <dc:publisher>${escapeXml(d.publisher)}</dc:publisher>` : ""}${d.description ? `
+    <dc:description>${escapeXml(d.description)}</dc:description>` : ""}
+    <meta property="dcterms:modified">${d.modified}</meta>${coverMeta}
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    <item id="nav" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="style" href="style.css" media-type="text/css"/>
+    <item id="chapter_0" href="chapter_0.xhtml" media-type="application/xhtml+xml"/>${coverItem}
+${imageManifest}
+  </manifest>
+  <spine toc="ncx">
+    <itemref idref="chapter_0"/>
+  </spine>
+</package>`;
+}
+function generateTocNcx(uuid, title, author) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="urn:uuid:${uuid}"/>
+    <meta name="dtb:generator" content="md-bookify"/>
+    <meta name="dtb:depth" content="1"/>
+  </head>
+  <docTitle><text>${escapeXml(title)}</text></docTitle>
+  <docAuthor><text>${escapeXml(author)}</text></docAuthor>
+  <navMap>
+    <navPoint id="chapter_0" playOrder="1" class="chapter">
+      <navLabel><text>${escapeXml(title)}</text></navLabel>
+      <content src="chapter_0.xhtml"/>
+    </navPoint>
+  </navMap>
+</ncx>`;
+}
+function generateTocXhtml(title, language) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="${escapeXml(language)}" lang="${escapeXml(language)}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Table of Contents</title>
+</head>
+<body>
+  <nav id="toc" epub:type="toc">
+    <h1>Table of Contents</h1>
+    <ol>
+      <li><a href="chapter_0.xhtml">${escapeXml(title)}</a></li>
+    </ol>
+  </nav>
+</body>
+</html>`;
+}
+function generateChapterXhtml(title, language, content) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"
+      xml:lang="${escapeXml(language)}" lang="${escapeXml(language)}">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${escapeXml(title)}</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+${content}
+</body>
+</html>`;
+}
+async function packageEpub(options) {
+  const uuid = randomUUID();
+  const authors = Array.isArray(options.author) ? options.author : [options.author];
+  const authorString = authors.join(", ");
+  const modified = (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const { html: processedContent, images } = await extractAndEmbedImages(options.content);
+  let coverData = null;
+  if (options.cover) {
+    coverData = await loadCoverImage(options.cover);
+  }
+  const contentOpf = generateContentOpf({
+    uuid,
+    title: options.title,
+    authors,
+    language: options.language,
+    publisher: options.publisher,
+    description: options.description,
+    modified,
+    images,
+    cover: coverData ? { mediaType: coverData.mediaType, extension: coverData.extension } : void 0
+  });
+  const tocNcx = generateTocNcx(uuid, options.title, authorString);
+  const tocXhtml = generateTocXhtml(options.title, options.language);
+  const chapterXhtml = generateChapterXhtml(options.title, options.language, processedContent);
+  const zip = new JSZip();
+  zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+  zip.file("META-INF/container.xml", CONTAINER_XML);
+  zip.file("OEBPS/content.opf", contentOpf);
+  zip.file("OEBPS/toc.ncx", tocNcx);
+  zip.file("OEBPS/toc.xhtml", tocXhtml);
+  zip.file("OEBPS/chapter_0.xhtml", chapterXhtml);
+  zip.file("OEBPS/style.css", options.css || "");
+  if (coverData) {
+    zip.file(`OEBPS/cover.${coverData.extension}`, coverData.data);
+  }
+  for (const img of images) {
+    zip.file(`OEBPS/images/${img.id}.${img.extension}`, img.data);
+  }
+  const buffer = await zip.generateAsync({
+    type: "nodebuffer",
+    mimeType: "application/epub+zip",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 }
+  });
+  return buffer;
+}
+
+// src/epub.ts
 var STYLE_RE = /<style[^>]*>([\s\S]*?)<\/style>/gi;
 var TITLE_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
 var BODY_RE = /<body[^>]*>([\s\S]*?)<\/body>/i;
-var IMG_SRC_RE = /<img\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>/gi;
+var IMG_SRC_RE2 = /<img\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>/gi;
 var IMAGE_EXTENSIONS = /* @__PURE__ */ new Set([
   "png",
   "jpg",
@@ -317,27 +596,6 @@ var IMAGE_EXTENSIONS = /* @__PURE__ */ new Set([
   "tif",
   "avif"
 ]);
-var MIME_TO_EXT = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/gif": "gif",
-  "image/svg+xml": "svg",
-  "image/webp": "webp",
-  "image/bmp": "bmp",
-  "image/tiff": "tiff",
-  "image/avif": "avif"
-};
-function detectMimeFromBytes(data) {
-  if (data.length < 4) return null;
-  if (data[0] === 137 && data[1] === 80 && data[2] === 78 && data[3] === 71) return "image/png";
-  if (data[0] === 255 && data[1] === 216 && data[2] === 255) return "image/jpeg";
-  if (data[0] === 71 && data[1] === 73 && data[2] === 70 && data[3] === 56) return "image/gif";
-  if (data.length >= 12 && data[0] === 82 && data[1] === 73 && data[2] === 70 && data[3] === 70 && data[8] === 87 && data[9] === 69 && data[10] === 66 && data[11] === 80) return "image/webp";
-  if (data[0] === 66 && data[1] === 77) return "image/bmp";
-  const head = data.subarray(0, Math.min(1e3, data.length)).toString("utf-8");
-  if (head.includes("<svg")) return "image/svg+xml";
-  return null;
-}
 function urlHasImageExtension(url) {
   try {
     const pathname = new URL(url).pathname;
@@ -365,9 +623,9 @@ function extractStyleAndBody(html) {
 }
 async function embedLocalImages(html, basePath) {
   const replacements = [];
-  IMG_SRC_RE.lastIndex = 0;
+  IMG_SRC_RE2.lastIndex = 0;
   let match;
-  while ((match = IMG_SRC_RE.exec(html)) !== null) {
+  while ((match = IMG_SRC_RE2.exec(html)) !== null) {
     const fullMatch = match[0];
     const before = match[1] ?? "";
     const quote = match[2] ?? '"';
@@ -399,9 +657,9 @@ async function embedLocalImages(html, basePath) {
 }
 async function fetchRemoteImages(html) {
   const candidates = [];
-  IMG_SRC_RE.lastIndex = 0;
+  IMG_SRC_RE2.lastIndex = 0;
   let match;
-  while ((match = IMG_SRC_RE.exec(html)) !== null) {
+  while ((match = IMG_SRC_RE2.exec(html)) !== null) {
     const src = match[3] ?? "";
     if (!src.startsWith("http://") && !src.startsWith("https://")) continue;
     if (urlHasImageExtension(src)) continue;
@@ -478,21 +736,16 @@ async function generateEpub(html, options) {
   const author = options?.author ?? "Unknown";
   const language = options?.language ?? "en";
   try {
-    const epub = new EPub(
-      {
-        title,
-        author,
-        lang: language,
-        ...options?.publisher ? { publisher: options.publisher } : {},
-        ...options?.description ? { description: options.description } : {},
-        ...options?.cover ? { cover: options.cover } : {},
-        ...css ? { css } : {},
-        verbose: false
-      },
-      [{ title, content: processedBody }]
-    );
-    const buffer = await epub.genEpub();
-    return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+    return await packageEpub({
+      title,
+      author,
+      language,
+      publisher: options?.publisher,
+      description: options?.description,
+      cover: options?.cover,
+      css,
+      content: processedBody
+    });
   } finally {
     if (tempDir) {
       await rm(tempDir, { recursive: true, force: true }).catch(() => {
@@ -541,7 +794,7 @@ async function convertMdToEpub(inputPath, options) {
 
 // bin/md-bookify.ts
 function getVersion() {
-  return "2.0.0";
+  return "2.0.2";
 }
 var program = new Command();
 program.enablePositionalOptions();

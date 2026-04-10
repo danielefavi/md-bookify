@@ -51,6 +51,11 @@ interface WrapEpubHtmlOptions {
  */
 declare function wrapHtmlForEpub(contentHtml: string, options?: WrapEpubHtmlOptions): string;
 
+/**
+ * Detect image MIME type from file magic bytes.
+ */
+declare function detectMimeFromBytes(data: Buffer): string | null;
+
 interface EpubOptions {
     title?: string;
     author?: string | string[];
@@ -66,11 +71,6 @@ interface SplitHtml {
     title?: string;
 }
 /**
- * Detect image MIME type from file magic bytes. Returns the MIME string or
- * `null` when the format is not recognised.
- */
-declare function detectMimeFromBytes(data: Buffer): string | null;
-/**
  * Pull inline `<style>` blocks and the `<body>` contents out of a full HTML
  * document so they can be passed separately to an EPUB packager (which wants
  * the body fragment plus a single `css` string, not a full doc).
@@ -78,7 +78,7 @@ declare function detectMimeFromBytes(data: Buffer): string | null;
 declare function extractStyleAndBody(html: string): SplitHtml;
 /**
  * Walk the HTML for `<img src>` references that point at local files and
- * rewrite them to absolute `file://` URLs. epub-gen-memory's image fetcher
+ * rewrite them to absolute `file://` URLs. the EPUB packager's image fetcher
  * reads `file://` URLs natively via `fs.readFile` and packages them as
  * separate manifest entries inside the EPUB ZIP — that's smaller and faster
  * than data URIs.
@@ -92,7 +92,7 @@ declare function embedLocalImages(html: string, basePath: string): Promise<strin
 /**
  * Fetch remote images whose URLs lack a recognisable file extension.
  *
- * epub-gen-memory determines each image's MIME type from the URL alone
+ * the EPUB packager determines each image's MIME type from the URL alone
  * (`mime.getType(url)`). When the URL has no extension (common with image
  * services like placehold.co, Unsplash, Gravatar, etc.), the type comes back
  * empty and the image is stored without an extension — EPUB readers then
@@ -101,7 +101,7 @@ declare function embedLocalImages(html: string, basePath: string): Promise<strin
  * This function downloads those images, detects their real type from the HTTP
  * `Content-Type` header (with a magic-bytes fallback), writes them to a temp
  * directory with the correct extension, and rewrites the `<img src>` to a
- * `file://` URL so epub-gen-memory can pick up the type from the path.
+ * `file://` URL so the EPUB packager can pick up the type from the path.
  *
  * The caller **must** keep the returned `tempDir` alive until
  * `epub.genEpub()` has finished reading the files, then delete it.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -99,84 +99,78 @@ describe('embedLocalImages', () => {
   });
 });
 
-describe('generateEpub (unit, mocked epub-gen-memory)', () => {
-  const mockGenEpub = vi.fn();
-  const mockEPubCtor = vi.fn();
-
-  beforeEach(() => {
-    vi.resetModules();
-    vi.resetAllMocks();
-    mockGenEpub.mockResolvedValue(Buffer.from('PK\x03\x04mock'));
-    mockEPubCtor.mockImplementation(function (this: any) {
-      this.genEpub = mockGenEpub;
-    });
-    vi.doMock('epub-gen-memory', () => ({
-      EPub: mockEPubCtor,
-      default: mockEPubCtor,
-    }));
-  });
-
-  afterEach(() => {
-    vi.doUnmock('epub-gen-memory');
-  });
-
+describe('generateEpub (unit)', () => {
   it('passes the body fragment (not the full HTML doc) as chapter content', async () => {
     const { generateEpub } = await import('../src/epub.js');
+    const JSZip = (await import('jszip')).default;
     const html = `<html><head><title>T</title></head><body><h1>Chapter</h1></body></html>`;
-    await generateEpub(html);
-    const [, chapters] = mockEPubCtor.mock.calls[0]!;
-    expect(chapters[0].content).toBe('<h1>Chapter</h1>');
+    const buf = await generateEpub(html);
+    const zip = await JSZip.loadAsync(buf);
+    const chapterFiles = Object.keys(zip.files).filter((f) => f.includes('chapter'));
+    expect(chapterFiles.length).toBeGreaterThan(0);
+    const chapterContent = await zip.file(chapterFiles[0]!)!.async('string');
+    expect(chapterContent).toContain('<h1>Chapter</h1>');
   });
 
-  it('hoists inline <style> blocks into the css option', async () => {
+  it('hoists inline <style> blocks into the EPUB CSS', async () => {
     const { generateEpub } = await import('../src/epub.js');
+    const JSZip = (await import('jszip')).default;
     const html = `<html><head><style>body { color: red; }</style></head><body>x</body></html>`;
-    await generateEpub(html);
-    const [opts] = mockEPubCtor.mock.calls[0]!;
-    expect(opts.css).toContain('body { color: red; }');
+    const buf = await generateEpub(html);
+    const zip = await JSZip.loadAsync(buf);
+    const css = await zip.file('OEBPS/style.css')!.async('string');
+    expect(css).toContain('body { color: red; }');
   });
 
   it('uses the <title> tag as default title when options.title is omitted', async () => {
     const { generateEpub } = await import('../src/epub.js');
+    const JSZip = (await import('jszip')).default;
     const html = `<html><head><title>Extracted Title</title></head><body>x</body></html>`;
-    await generateEpub(html);
-    const [opts] = mockEPubCtor.mock.calls[0]!;
-    expect(opts.title).toBe('Extracted Title');
+    const buf = await generateEpub(html);
+    const zip = await JSZip.loadAsync(buf);
+    const opf = await zip.file('OEBPS/content.opf')!.async('string');
+    expect(opf).toContain('Extracted Title');
   });
 
   it('options.title takes precedence over the extracted <title>', async () => {
     const { generateEpub } = await import('../src/epub.js');
+    const JSZip = (await import('jszip')).default;
     const html = `<html><head><title>Extracted</title></head><body>x</body></html>`;
-    await generateEpub(html, { title: 'Override' });
-    const [opts] = mockEPubCtor.mock.calls[0]!;
-    expect(opts.title).toBe('Override');
+    const buf = await generateEpub(html, { title: 'Override' });
+    const zip = await JSZip.loadAsync(buf);
+    const opf = await zip.file('OEBPS/content.opf')!.async('string');
+    expect(opf).toContain('<dc:title>Override</dc:title>');
   });
 
   it('defaults author to "Unknown" when not supplied', async () => {
     const { generateEpub } = await import('../src/epub.js');
-    await generateEpub('<html><body>x</body></html>');
-    const [opts] = mockEPubCtor.mock.calls[0]!;
-    expect(opts.author).toBe('Unknown');
+    const JSZip = (await import('jszip')).default;
+    const buf = await generateEpub('<html><body>x</body></html>');
+    const zip = await JSZip.loadAsync(buf);
+    const opf = await zip.file('OEBPS/content.opf')!.async('string');
+    expect(opf).toContain('<dc:creator>Unknown</dc:creator>');
   });
 
-  it('defaults lang to "en" when language is not supplied', async () => {
+  it('defaults language to "en" when not supplied', async () => {
     const { generateEpub } = await import('../src/epub.js');
-    await generateEpub('<html><body>x</body></html>');
-    const [opts] = mockEPubCtor.mock.calls[0]!;
-    expect(opts.lang).toBe('en');
+    const JSZip = (await import('jszip')).default;
+    const buf = await generateEpub('<html><body>x</body></html>');
+    const zip = await JSZip.loadAsync(buf);
+    const opf = await zip.file('OEBPS/content.opf')!.async('string');
+    expect(opf).toContain('<dc:language>en</dc:language>');
   });
 
-  it('forwards publisher, description, and cover when supplied', async () => {
+  it('forwards publisher and description when supplied', async () => {
     const { generateEpub } = await import('../src/epub.js');
-    await generateEpub('<html><body>x</body></html>', {
+    const JSZip = (await import('jszip')).default;
+    const buf = await generateEpub('<html><body>x</body></html>', {
       publisher: 'Acme',
       description: 'A book',
-      cover: '/path/to/cover.jpg',
     });
-    const [opts] = mockEPubCtor.mock.calls[0]!;
-    expect(opts.publisher).toBe('Acme');
-    expect(opts.description).toBe('A book');
-    expect(opts.cover).toBe('/path/to/cover.jpg');
+    const zip = await JSZip.loadAsync(buf);
+    const opf = await zip.file('OEBPS/content.opf')!.async('string');
+    expect(opf).toContain('<dc:publisher>Acme</dc:publisher>');
+    expect(opf).toContain('<dc:description>A book</dc:description>');
   });
 
   it('returns a Buffer (not a Uint8Array)', async () => {
@@ -185,34 +179,31 @@ describe('generateEpub (unit, mocked epub-gen-memory)', () => {
     expect(Buffer.isBuffer(result)).toBe(true);
   });
 
-  it('embeds local images as file:// URLs when basePath is provided', async () => {
-    const tmp = await mkdtemp(join(tmpdir(), 'md-bookify-epub-mock-'));
+  it('embeds local images into the EPUB when basePath is provided', async () => {
+    const tmp = await mkdtemp(join(tmpdir(), 'md-bookify-epub-unit-'));
     try {
       await writeFile(join(tmp, 'img.png'), Buffer.from(RED_PNG_BASE64, 'base64'));
       const { generateEpub } = await import('../src/epub.js');
+      const JSZip = (await import('jszip')).default;
       const html = `<html><body><img src="./img.png" /></body></html>`;
-      await generateEpub(html, { basePath: tmp });
-      const [, chapters] = mockEPubCtor.mock.calls[0]!;
-      expect(chapters[0].content).toMatch(/file:\/\/.*img\.png/);
+      const buf = await generateEpub(html, { basePath: tmp });
+      const zip = await JSZip.loadAsync(buf);
+      const imageFiles = Object.keys(zip.files).filter((f) => f.startsWith('OEBPS/images/') && !f.endsWith('/'));
+      expect(imageFiles.length).toBe(1);
+      // The chapter content should reference the embedded image
+      const chapterFiles = Object.keys(zip.files).filter((f) => f.includes('chapter'));
+      const chapterContent = await zip.file(chapterFiles[0]!)!.async('string');
+      expect(chapterContent).toMatch(/src="images\/[^"]+\.png"/);
     } finally {
       await rm(tmp, { recursive: true, force: true });
     }
   });
-
-  it('leaves remote image URLs untouched even with basePath', async () => {
-    const { generateEpub } = await import('../src/epub.js');
-    const html = `<html><body><img src="https://example.com/x.png" /></body></html>`;
-    await generateEpub(html, { basePath: '/tmp' });
-    const [, chapters] = mockEPubCtor.mock.calls[0]!;
-    expect(chapters[0].content).toContain('https://example.com/x.png');
-  });
 });
 
-describe('generateEpub (integration, real epub-gen-memory)', () => {
+describe('generateEpub (integration)', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
-    vi.resetModules();
     tmpDir = await mkdtemp(join(tmpdir(), 'md-bookify-epub-int-'));
   });
 
