@@ -3,6 +3,7 @@ import { isAbsolute, extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import JSZip from 'jszip';
+import sharp from 'sharp';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -159,6 +160,10 @@ function detectMime(data: Buffer, src: string, contentType?: string | null): str
   return mimeFromExtension(src);
 }
 
+async function convertSvgToPng(data: Buffer): Promise<Buffer> {
+  return sharp(data).png().toBuffer();
+}
+
 async function extractAndEmbedImages(
   html: string,
 ): Promise<{ html: string; images: ImageEntry[] }> {
@@ -208,10 +213,21 @@ async function extractAndEmbedImages(
 
     if (!data) continue;
 
-    const mime = detectMime(data, src, contentType);
+    let mime = detectMime(data, src, contentType);
     if (!mime) {
       console.warn(`md-bookify: could not determine image type for ${src}`);
       continue;
+    }
+
+    // Convert SVG to PNG — most e-readers don't support SVG images.
+    if (mime === 'image/svg+xml') {
+      try {
+        data = await convertSvgToPng(data);
+        mime = 'image/png';
+      } catch (err) {
+        console.warn(`md-bookify: could not convert SVG to PNG for ${src}: ${err instanceof Error ? err.message : err}`);
+        continue;
+      }
     }
 
     const ext = MIME_TO_EXT[mime];
@@ -255,10 +271,21 @@ async function loadCoverImage(
 
   if (!data) return null;
 
-  const mime = detectMime(data, cover, contentType);
+  let mime = detectMime(data, cover, contentType);
   if (!mime) {
     console.warn(`md-bookify: could not determine cover image type for ${cover}`);
     return null;
+  }
+
+  // Convert SVG to PNG — most e-readers don't support SVG images.
+  if (mime === 'image/svg+xml') {
+    try {
+      data = await convertSvgToPng(data);
+      mime = 'image/png';
+    } catch (err) {
+      console.warn(`md-bookify: could not convert SVG cover to PNG: ${err instanceof Error ? err.message : err}`);
+      return null;
+    }
   }
 
   const ext = MIME_TO_EXT[mime];

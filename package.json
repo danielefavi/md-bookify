@@ -1,6 +1,6 @@
 {
   "name": "md-bookify",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "CLI and Node.js library to convert Markdown to PDF or EPUB ebooks — with syntax highlighting (Prism), math (KaTeX), and GitHub Flavored Markdown. Built for use by AI agents.",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,7 +28,8 @@
     "marked-katex-extension": "^5.1.7",
     "pdf-lib": "^1.17.1",
     "prismjs": "^1.30.0",
-    "puppeteer": "^24.0.0"
+    "puppeteer": "^24.0.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",

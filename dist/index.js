@@ -24,6 +24,7 @@ import { PDFDocument } from 'pdf-lib';
 import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import JSZip from 'jszip';
+import sharp from 'sharp';
 
 // src/index.ts
 var renderer = new Renderer();
@@ -401,6 +402,9 @@ function detectMime(data, src, contentType) {
   if (detected) return detected;
   return mimeFromExtension(src);
 }
+async function convertSvgToPng(data) {
+  return sharp(data).png().toBuffer();
+}
 async function extractAndEmbedImages(html) {
   const images = [];
   const replacements = [];
@@ -436,10 +440,19 @@ async function extractAndEmbedImages(html) {
       continue;
     }
     if (!data) continue;
-    const mime = detectMime(data, src, contentType);
+    let mime = detectMime(data, src, contentType);
     if (!mime) {
       console.warn(`md-bookify: could not determine image type for ${src}`);
       continue;
+    }
+    if (mime === "image/svg+xml") {
+      try {
+        data = await convertSvgToPng(data);
+        mime = "image/png";
+      } catch (err) {
+        console.warn(`md-bookify: could not convert SVG to PNG for ${src}: ${err instanceof Error ? err.message : err}`);
+        continue;
+      }
     }
     const ext = MIME_TO_EXT[mime];
     if (!ext) continue;
@@ -471,10 +484,19 @@ async function loadCoverImage(cover) {
     data = await readImageUrl(url);
   }
   if (!data) return null;
-  const mime = detectMime(data, cover, contentType);
+  let mime = detectMime(data, cover, contentType);
   if (!mime) {
     console.warn(`md-bookify: could not determine cover image type for ${cover}`);
     return null;
+  }
+  if (mime === "image/svg+xml") {
+    try {
+      data = await convertSvgToPng(data);
+      mime = "image/png";
+    } catch (err) {
+      console.warn(`md-bookify: could not convert SVG cover to PNG: ${err instanceof Error ? err.message : err}`);
+      return null;
+    }
   }
   const ext = MIME_TO_EXT[mime];
   if (!ext) return null;
