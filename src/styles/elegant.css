@@ -1,0 +1,408 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Image containers ── */
+
+.image-container {
+	display: block;
+}
+
+.image-container.align-right {
+	display: flex;
+	justify-content: end;
+}
+
+.image-container.align-center {
+	display: flex;
+	justify-content: center;
+}
+
+.image-container.float {
+	float: left;
+}
+
+.image-container.float.align-right {
+	float: right;
+}
+
+/* ── Base ── */
+
+body {
+	background-color: #fafaf7;
+	color: #2c2c2c;
+	font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-weight: 400;
+	font-size: 10.5pt;
+	max-width: 800px;
+	margin: 0 auto;
+	line-height: 1.75;
+	-webkit-font-smoothing: antialiased;
+	overflow-wrap: break-word;
+}
+
+/* ── Headings ── */
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+	color: #1a1a1a;
+	line-height: 1.3;
+	margin-top: 1.6em;
+	margin-bottom: 0.5em;
+}
+
+h1 {
+	font-size: 2.2em;
+	font-weight: 900;
+	letter-spacing: -0.02em;
+	border-bottom: 2px solid #c9b99a;
+	padding-bottom: 0.3em;
+	margin-top: 0;
+}
+
+h2 {
+	font-size: 1.6em;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	border-bottom: 1px solid #ddd5c3;
+	padding-bottom: 0.25em;
+}
+
+h3 {
+	font-size: 1.25em;
+	font-weight: 700;
+}
+
+h4 {
+	font-size: 1.1em;
+	font-weight: 700;
+	font-style: italic;
+}
+
+h5 {
+	font-size: 1em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 0.85em;
+}
+
+h6 {
+	font-size: 0.85em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: #666;
+	font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* ── Paragraphs ── */
+
+p {
+	margin-bottom: 0px;
+}
+
+p[data-spacing="double"] {
+	margin-top: 1em;
+}
+
+p[data-spacing="single"] {
+	margin-top: 0px;
+}
+
+p[data-spacing="single"]:empty {
+	margin-top: 1em;
+}
+
+/* ── Math blocks ── */
+
+.math-block {
+	padding-top: 20px;
+	padding-bottom: 20px;
+}
+
+/* ── Code blocks ── */
+
+pre.codeblock {
+	overflow-x: auto;
+}
+
+iframe {
+	max-width: 100% !important;
+	background-color: transparent !important;
+}
+
+code:not(pre code) {
+	background-color: #f0ede6;
+	border: 1px solid #ddd5c3;
+	border-radius: 4px;
+	padding: 2px 6px 1px 6px;
+	font-family: "JetBrains Mono", "Fira Code", Hack, Consolas, "Courier New", monospace !important;
+	font-size: 0.88em !important;
+	color: #8b4513;
+}
+
+pre {
+	padding: 16px 20px;
+	background-color: #2b2b2b;
+	color: #e0ddd5;
+	border-radius: 6px;
+	font-family: "JetBrains Mono", "Fira Code", Hack, Consolas, "Courier New", monospace !important;
+	font-size: 9pt !important;
+	line-height: 1.55;
+	margin-bottom: 16px !important;
+	border: 1px solid #222;
+}
+
+pre code {
+	color: #e0ddd5;
+}
+
+/* ── Lists ── */
+
+li > p {
+	margin-top: 0px;
+	margin-bottom: 10px;
+}
+
+ul, ol {
+	padding-left: 1.8em;
+}
+
+li {
+	margin-bottom: 0.15em;
+}
+
+/* ── Checklists ── */
+
+.checklist > li {
+	list-style: none;
+	margin: 0.25em 0;
+}
+
+.checklist > li::before {
+	content: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cg%20id%3D%22checklist-unchecked%22%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Crect%20id%3D%22Rectangle%22%20width%3D%2215%22%20height%3D%2215%22%20x%3D%22.5%22%20y%3D%22.5%22%20fill-rule%3D%22nonzero%22%20stroke%3D%22%234C4C4C%22%20rx%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E%0A");
+	cursor: pointer;
+	height: 1.1em;
+	margin-left: -2.5em;
+	margin-top: 0em;
+	position: absolute;
+	width: 1.5em;
+	padding-left: 1em;
+}
+
+.checklist li.checked::before {
+	content: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cg%20id%3D%22checklist-checked%22%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Crect%20id%3D%22Rectangle%22%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%23008837%22%20fill-rule%3D%22nonzero%22%20rx%3D%222%22%2F%3E%3Cpath%20id%3D%22Path%22%20fill%3D%22%23FFF%22%20fill-rule%3D%22nonzero%22%20d%3D%22M11.5703186%2C3.14417309%20C11.8516238%2C2.73724603%2012.4164781%2C2.62829933%2012.83558%2C2.89774797%20C13.260121%2C3.17069355%2013.3759736%2C3.72932262%2013.0909105%2C4.14168582%20L7.7580587%2C11.8560195%20C7.43776896%2C12.3193404%206.76483983%2C12.3852142%206.35607322%2C11.9948725%20L3.02491697%2C8.8138662%20C2.66090143%2C8.46625845%202.65798871%2C7.89594698%203.01850234%2C7.54483354%20C3.373942%2C7.19866177%203.94940006%2C7.19592841%204.30829608%2C7.5386474%20L6.85276923%2C9.9684299%20L11.5703186%2C3.14417309%20Z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E%0A");
+}
+
+.checklist li.checked {
+	color: #888;
+}
+
+[dir="rtl"] .checklist > li::before {
+	margin-left: 0;
+	margin-right: -1.5em;
+}
+
+/* ── Blockquotes ── */
+
+blockquote {
+	border-left: 3px solid #c9b99a;
+	padding-left: 1.2em;
+	margin-top: 0px;
+	margin-left: 0;
+	color: #555;
+	font-style: italic;
+}
+
+blockquote blockquote {
+	border-left-color: #ddd5c3;
+}
+
+/* ── Links ── */
+
+a {
+	color: #6b4c2a;
+	text-decoration: underline;
+	text-decoration-color: #c9b99a;
+	text-underline-offset: 2px;
+}
+
+a:hover {
+	color: #4a3520;
+}
+
+/* ── Horizontal rules ── */
+
+hr {
+	border: none;
+	height: 1px;
+	background: linear-gradient(to right, transparent, #c9b99a, transparent);
+	margin: 2em 0;
+}
+
+/* ── Tables ── */
+
+table {
+	border-collapse: collapse;
+	margin: 1em 0 0 0;
+	overflow: hidden;
+	table-layout: fixed;
+	width: 100%;
+}
+
+table td,
+table th {
+	border: 1px solid #ddd5c3;
+	box-sizing: border-box;
+	min-width: 1em;
+	padding: 8px 12px;
+	position: relative;
+	vertical-align: top;
+}
+
+table td > *,
+table th > * {
+	margin-bottom: 0;
+}
+
+table th {
+	background-color: #f3f0e8;
+	font-weight: 600;
+	text-align: left;
+	font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 0.9em;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: #555;
+}
+
+table tr:nth-child(even) {
+	background-color: #faf8f3;
+}
+
+table p {
+	margin: 0;
+}
+
+/* ── Images & Figures ── */
+
+img {
+	max-width: 100%;
+	border-radius: 4px;
+}
+
+figure {
+	margin: 1.5em 0;
+	text-align: center;
+}
+
+figcaption {
+	font-size: 0.88em;
+	color: #888;
+	font-style: italic;
+	margin-top: 0.5em;
+}
+
+/* ── Keyboard keys ── */
+
+kbd {
+	background-color: #f3f0e8;
+	border: 1px solid #c9b99a;
+	border-radius: 3px;
+	box-shadow: 0 1px 0 #c9b99a;
+	font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 0.85em;
+	padding: 2px 6px;
+}
+
+/* ── Definition lists ── */
+
+dl {
+	margin: 1em 0;
+}
+
+dt {
+	font-weight: 600;
+	font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+	margin-top: 0.8em;
+}
+
+dd {
+	margin-left: 1.5em;
+	color: #555;
+}
+
+/* ── Details / Summary ── */
+
+details {
+	border: 1px solid #ddd5c3;
+	border-radius: 6px;
+	padding: 0.5em 1em;
+	margin: 1em 0;
+	background-color: #faf8f3;
+}
+
+summary {
+	font-weight: 600;
+	cursor: pointer;
+	color: #6b4c2a;
+}
+
+/* ── Marks and highlights ── */
+
+mark {
+	background-color: #f5e6b8;
+	padding: 1px 4px;
+	border-radius: 2px;
+}
+
+/* ── Abbreviations ── */
+
+abbr[title] {
+	text-decoration: underline dotted #c9b99a;
+	cursor: help;
+}
+
+/* ── Print styles ── */
+
+@page {
+	margin: 20mm;
+}
+
+@media print {
+	body {
+		max-width: none;
+		background-color: #fff;
+		color: #000;
+		overflow-wrap: break-word;
+		word-wrap: break-word;
+	}
+
+	h1, h2, h3, h4, h5, h6 {
+		page-break-after: avoid;
+	}
+
+	pre, blockquote, table, figure {
+		page-break-inside: avoid;
+	}
+
+	pre {
+		white-space: pre-wrap !important;
+		word-wrap: break-word !important;
+		overflow: visible !important;
+		background-color: #f5f5f0 !important;
+		color: #2c2c2c !important;
+		border: 1px solid #ccc !important;
+	}
+
+	pre code {
+		white-space: pre-wrap !important;
+		word-wrap: break-word !important;
+		color: #2c2c2c !important;
+	}
+
+	a {
+		color: #2c2c2c;
+		text-decoration: underline;
+	}
+}
