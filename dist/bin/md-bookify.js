@@ -329,6 +329,44 @@ function detectMimeFromBytes(data) {
 function escapeXml(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
+var BOOLEAN_ATTRS = [
+  "allowfullscreen",
+  "async",
+  "autofocus",
+  "autoplay",
+  "checked",
+  "compact",
+  "controls",
+  "declare",
+  "default",
+  "defer",
+  "disabled",
+  "formnovalidate",
+  "hidden",
+  "ismap",
+  "loop",
+  "multiple",
+  "muted",
+  "noresize",
+  "noshade",
+  "novalidate",
+  "nowrap",
+  "open",
+  "readonly",
+  "required",
+  "reversed",
+  "selected"
+];
+var BOOLEAN_ATTR_RE = new RegExp(
+  `(\\s)(${BOOLEAN_ATTRS.join("|")})(?=\\s|/?>)(?!\\s*=)`,
+  "gi"
+);
+function sanitizeForXhtml(html) {
+  return html.replace(
+    /<[a-zA-Z][^>]*>/g,
+    (tag) => tag.replace(BOOLEAN_ATTR_RE, (_, ws, attr) => `${ws}${attr.toLowerCase()}="${attr.toLowerCase()}"`)
+  );
+}
 var IMG_SRC_RE = /<img\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+)\2([^>]*)>/gi;
 function mimeFromExtension(filepath) {
   const ext = extname(filepath).slice(1).toLowerCase();
@@ -536,7 +574,8 @@ async function packageEpub(options) {
   const authors = Array.isArray(options.author) ? options.author : [options.author];
   const authorString = authors.join(", ");
   const modified = (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
-  const { html: processedContent, images } = await extractAndEmbedImages(options.content);
+  const { html: rawContent, images } = await extractAndEmbedImages(options.content);
+  const processedContent = sanitizeForXhtml(rawContent);
   let coverData = null;
   if (options.cover) {
     coverData = await loadCoverImage(options.cover);
@@ -794,7 +833,7 @@ async function convertMdToEpub(inputPath, options) {
 
 // bin/md-bookify.ts
 function getVersion() {
-  return "2.0.2";
+  return "2.1.0";
 }
 var program = new Command();
 program.enablePositionalOptions();

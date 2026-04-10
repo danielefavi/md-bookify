@@ -268,6 +268,43 @@ describe('generateEpub (integration)', () => {
   });
 });
 
+describe('XHTML boolean attribute sanitisation', () => {
+  it('converts <details open> to <details open="open"> in chapter XHTML', async () => {
+    const { generateEpub } = await import('../src/epub.js');
+    const JSZip = (await import('jszip')).default;
+    const html = `<html><body><details open><summary>Title</summary><p>Content</p></details></body></html>`;
+    const buf = await generateEpub(html);
+    const zip = await JSZip.loadAsync(buf);
+    const chapter = await zip.file('OEBPS/chapter_0.xhtml')!.async('string');
+    expect(chapter).toContain('open="open"');
+    expect(chapter).not.toMatch(/<details\s+open[\s>](?!.*=)/);
+  });
+
+  it('leaves already-valid open="open" unchanged', async () => {
+    const { generateEpub } = await import('../src/epub.js');
+    const JSZip = (await import('jszip')).default;
+    const html = `<html><body><details open="open"><summary>Title</summary></details></body></html>`;
+    const buf = await generateEpub(html);
+    const zip = await JSZip.loadAsync(buf);
+    const chapter = await zip.file('OEBPS/chapter_0.xhtml')!.async('string');
+    expect(chapter).toContain('open="open"');
+    // Should not double-up the attribute
+    expect(chapter).not.toContain('open="open"="open"');
+  });
+
+  it('converts multiple boolean attrs in one tag', async () => {
+    const { generateEpub } = await import('../src/epub.js');
+    const JSZip = (await import('jszip')).default;
+    const html = `<html><body><input checked disabled readonly /></body></html>`;
+    const buf = await generateEpub(html);
+    const zip = await JSZip.loadAsync(buf);
+    const chapter = await zip.file('OEBPS/chapter_0.xhtml')!.async('string');
+    expect(chapter).toContain('checked="checked"');
+    expect(chapter).toContain('disabled="disabled"');
+    expect(chapter).toContain('readonly="readonly"');
+  });
+});
+
 describe('detectMimeFromBytes', () => {
   it('detects PNG from magic bytes', async () => {
     const { detectMimeFromBytes } = await import('../src/epub.js');

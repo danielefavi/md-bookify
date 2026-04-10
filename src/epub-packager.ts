@@ -74,6 +74,38 @@ function escapeXml(s: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// HTML → XHTML sanitisation
+// ---------------------------------------------------------------------------
+
+/** HTML boolean attributes that must be written as `attr="attr"` in XHTML. */
+const BOOLEAN_ATTRS = [
+  'allowfullscreen', 'async', 'autofocus', 'autoplay', 'checked', 'compact',
+  'controls', 'declare', 'default', 'defer', 'disabled', 'formnovalidate',
+  'hidden', 'ismap', 'loop', 'multiple', 'muted', 'noresize', 'noshade',
+  'novalidate', 'nowrap', 'open', 'readonly', 'required', 'reversed',
+  'selected',
+];
+
+const BOOLEAN_ATTR_RE = new RegExp(
+  `(\\s)(${BOOLEAN_ATTRS.join('|')})(?=\\s|/?>)(?!\\s*=)`,
+  'gi',
+);
+
+/**
+ * Convert HTML boolean attributes to XHTML-valid form.
+ *
+ * In HTML5, `<details open>` is valid. In XHTML (used by EPUB), boolean
+ * attributes must have a value: `<details open="open">`. E-readers with
+ * strict XML parsers reject the valueless form as malformed XML, reporting
+ * the file as "damaged".
+ */
+function sanitizeForXhtml(html: string): string {
+  return html.replace(/<[a-zA-Z][^>]*>/g, (tag) =>
+    tag.replace(BOOLEAN_ATTR_RE, (_, ws, attr) => `${ws}${attr.toLowerCase()}="${attr.toLowerCase()}"`),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Image handling
 // ---------------------------------------------------------------------------
 
@@ -367,7 +399,10 @@ export async function packageEpub(options: EpubPackagerOptions): Promise<Buffer>
   const modified = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
   // Extract and embed images from the chapter content
-  const { html: processedContent, images } = await extractAndEmbedImages(options.content);
+  const { html: rawContent, images } = await extractAndEmbedImages(options.content);
+
+  // Normalise HTML boolean attributes to valid XHTML (e.g. `open` → `open="open"`)
+  const processedContent = sanitizeForXhtml(rawContent);
 
   // Load cover image if provided
   let coverData: { data: Buffer; mediaType: string; extension: string } | null = null;
