@@ -639,6 +639,20 @@ async function packageEpub(options) {
 }
 
 // src/epub.ts
+var ZWSP = "\u200B";
+function insertWordBreaks(html, maxLen = 20) {
+  return html.split(/(<[^>]+>)/).map((segment) => {
+    if (segment.startsWith("<")) return segment;
+    return segment.replace(/\S{21,}/g, (word) => {
+      let result = "";
+      for (let i = 0; i < word.length; i++) {
+        if (i > 0 && i % maxLen === 0) result += ZWSP;
+        result += word[i];
+      }
+      return result;
+    });
+  }).join("");
+}
 var STYLE_RE = /<style[^>]*>([\s\S]*?)<\/style>/gi;
 var TITLE_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
 var BODY_RE = /<body[^>]*>([\s\S]*?)<\/body>/i;
@@ -792,6 +806,7 @@ async function generateEpub(html, options) {
   let processedBody = options?.basePath ? await embedLocalImages(body, options.basePath) : body;
   const { html: fetchedBody, tempDir } = await fetchRemoteImages(processedBody);
   processedBody = fetchedBody;
+  processedBody = insertWordBreaks(processedBody);
   const title = options?.title ?? extractedTitle ?? "Document";
   const author = options?.author ?? "Unknown";
   const language = options?.language ?? "en";
@@ -876,6 +891,6 @@ async function convertMarkdownToEpubBuffer(markdown, options) {
   });
 }
 
-export { convertMarkdownToEpubBuffer, convertMarkdownToPdfBuffer, convertMdToEpub, convertMdToPdf, detectMimeFromBytes, embedLocalImages, extractStyleAndBody, fetchRemoteImages, generateEpub, generateEpubToFile, generatePdf, generatePdfToFile, parseMarkdown, parseMarkdownFile, wrapHtml, wrapHtmlForEpub };
+export { convertMarkdownToEpubBuffer, convertMarkdownToPdfBuffer, convertMdToEpub, convertMdToPdf, detectMimeFromBytes, embedLocalImages, extractStyleAndBody, fetchRemoteImages, generateEpub, generateEpubToFile, generatePdf, generatePdfToFile, insertWordBreaks, parseMarkdown, parseMarkdownFile, wrapHtml, wrapHtmlForEpub };
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

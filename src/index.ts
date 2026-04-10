@@ -11,7 +11,7 @@ export { wrapHtml } from './template.js';
 export { wrapHtmlForEpub } from './epub-template.js';
 export { generatePdf, generatePdfToFile } from './pdf.js';
 export { generateEpub, generateEpubToFile } from './epub.js';
-export { extractStyleAndBody, embedLocalImages, fetchRemoteImages, detectMimeFromBytes } from './epub.js';
+export { extractStyleAndBody, embedLocalImages, fetchRemoteImages, detectMimeFromBytes, insertWordBreaks } from './epub.js';
 export type { PdfOptions } from './pdf.js';
 export type { EpubOptions } from './epub.js';
 export type { ParseOptions, MathOutput } from './parser.js';

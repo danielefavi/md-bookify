@@ -136,6 +136,7 @@ code:not(pre code) {
 	font-family: "Courier New", Courier, monospace !important;
 	font-size: 0.9em !important;
 	color: #000;
+	overflow-wrap: break-word;
 }
 
 pre {

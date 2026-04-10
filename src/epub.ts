@@ -23,6 +23,27 @@ interface SplitHtml {
   title?: string;
 }
 
+const ZWSP = '\u200B';
+
+/**
+ * Insert zero-width spaces into long unbroken strings in HTML text content.
+ * Many e-readers ignore CSS word-break properties, so this provides actual
+ * character-level break opportunities that all renderers respect.
+ */
+export function insertWordBreaks(html: string, maxLen = 20): string {
+  return html.split(/(<[^>]+>)/).map(segment => {
+    if (segment.startsWith('<')) return segment;
+    return segment.replace(/\S{21,}/g, (word) => {
+      let result = '';
+      for (let i = 0; i < word.length; i++) {
+        if (i > 0 && i % maxLen === 0) result += ZWSP;
+        result += word[i];
+      }
+      return result;
+    });
+  }).join('');
+}
+
 const STYLE_RE = /<style[^>]*>([\s\S]*?)<\/style>/gi;
 const TITLE_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
 const BODY_RE = /<body[^>]*>([\s\S]*?)<\/body>/i;
@@ -257,6 +278,8 @@ export async function generateEpub(html: string, options?: EpubOptions): Promise
   // that the EPUB packager can determine their MIME type from the local path.
   const { html: fetchedBody, tempDir } = await fetchRemoteImages(processedBody);
   processedBody = fetchedBody;
+
+  processedBody = insertWordBreaks(processedBody);
 
   const title = options?.title ?? extractedTitle ?? 'Document';
   const author = options?.author ?? 'Unknown';

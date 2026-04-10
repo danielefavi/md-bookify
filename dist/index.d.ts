@@ -71,6 +71,12 @@ interface SplitHtml {
     title?: string;
 }
 /**
+ * Insert zero-width spaces into long unbroken strings in HTML text content.
+ * Many e-readers ignore CSS word-break properties, so this provides actual
+ * character-level break opportunities that all renderers respect.
+ */
+declare function insertWordBreaks(html: string, maxLen?: number): string;
+/**
  * Pull inline `<style>` blocks and the `<body>` contents out of a full HTML
  * document so they can be passed separately to an EPUB packager (which wants
  * the body fragment plus a single `css` string, not a full doc).
@@ -147,4 +153,4 @@ interface ConvertEpubOptions {
 declare function convertMdToEpub(inputPath: string, options?: ConvertEpubOptions): Promise<string>;
 declare function convertMarkdownToEpubBuffer(markdown: string, options?: ConvertEpubOptions): Promise<Buffer>;
 
-export { type ConvertEpubOptions, type ConvertOptions, type EpubOptions, type MathOutput, type ParseOptions, type PdfOptions, type WrapEpubHtmlOptions, type WrapHtmlOptions, convertMarkdownToEpubBuffer, convertMarkdownToPdfBuffer, convertMdToEpub, convertMdToPdf, detectMimeFromBytes, embedLocalImages, extractStyleAndBody, fetchRemoteImages, generateEpub, generateEpubToFile, generatePdf, generatePdfToFile, parseMarkdown, parseMarkdownFile, wrapHtml, wrapHtmlForEpub };
+export { type ConvertEpubOptions, type ConvertOptions, type EpubOptions, type MathOutput, type ParseOptions, type PdfOptions, type WrapEpubHtmlOptions, type WrapHtmlOptions, convertMarkdownToEpubBuffer, convertMarkdownToPdfBuffer, convertMdToEpub, convertMdToPdf, detectMimeFromBytes, embedLocalImages, extractStyleAndBody, fetchRemoteImages, generateEpub, generateEpubToFile, generatePdf, generatePdfToFile, insertWordBreaks, parseMarkdown, parseMarkdownFile, wrapHtml, wrapHtmlForEpub };

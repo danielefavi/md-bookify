@@ -436,7 +436,7 @@ Unicode: — (em dash), – (en dash), … (ellipsis), " " (smart quotes), ' ' (
 
 ### Long Unbroken String (Word Wrap Test)
 
-`averylongvariablenamethatdoesnotcontainanyspacesorseparatorsandshouldforcewraporoverflowdependingontherenderer`
+`averylongvariablenamethatdoesnotcontainanyspacesorseparatorsandshouldforcewraporoverflowdependingontherendereraverylongvariablenamethatdoesnotcontainanyspacesorseparatorsandshouldforcewraporoverflowdependingontherenderer`
 
 ### Deeply Nested Blockquote + Code
 

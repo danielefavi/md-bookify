@@ -139,6 +139,7 @@ code:not(pre code) {
 	font-family: "JetBrains Mono", "Fira Code", Hack, Consolas, "Courier New", monospace !important;
 	font-size: 0.88em !important;
 	color: #8b4513;
+	overflow-wrap: break-word;
 }
 
 pre {

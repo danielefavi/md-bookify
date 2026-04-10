@@ -118,6 +118,7 @@ code:not(pre code) {
 	padding: 3px 5px 0px 5px;
 	font-family: Hack, Consolas, "Andale Mono", "Lucida Console", "Liberation Mono", "Courier New", Courier, monospace !important;
 	font-size: 10pt !important;
+	overflow-wrap: break-word;
 }
 
 pre {
