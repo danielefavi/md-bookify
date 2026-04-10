@@ -1,7 +1,7 @@
 {
   "name": "md-bookify",
   "version": "2.2.0",
-  "description": "CLI and Node.js library to convert Markdown to PDF or EPUB ebooks — with syntax highlighting (Prism), math (KaTeX), and GitHub Flavored Markdown. Built for use by AI agents.",
+  "description": "MCP server and CLI tool to convert Markdown to PDF or EPUB ebooks — with syntax highlighting (Prism), math (KaTeX), and GitHub Flavored Markdown. Also usable as a Node.js library.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -79,9 +79,20 @@
     "document",
     "export",
     "ai-agent",
+    "ai-tool",
     "llm",
+    "llm-tool",
     "mcp",
-    "mcp-server"
+    "mcp-server",
+    "model-context-protocol",
+    "claude",
+    "claude-code",
+    "claude-desktop",
+    "cursor",
+    "windsurf",
+    "agentic",
+    "ai-coding-assistant",
+    "document-generation"
   ],
   "license": "MIT"
 }

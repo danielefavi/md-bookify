@@ -4,9 +4,9 @@
 [![CI](https://github.com/danielefavi/md-bookify/actions/workflows/ci.yml/badge.svg)](https://github.com/danielefavi/md-bookify/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-A fast Node.js CLI and library to convert **Markdown to PDF** or **EPUB ebooks** — with Prism syntax highlighting, KaTeX math rendering, and GitHub Flavored Markdown (GFM) support.
+A fast Node.js **MCP server and CLI tool** to convert **Markdown to PDF** or **EPUB ebooks** — with Prism syntax highlighting, KaTeX math rendering, and GitHub Flavored Markdown (GFM) support. Also usable as a programmatic Node.js library.
 
-**Built for AI agents** — this tool is tested and optimized for use by LLMs and AI coding agents. See the [Technical Reference for AI Agents](#technical-reference-for-ai-agents) section for structured integration details.
+**Built for AI agents** — works out of the box with Claude Code, Claude Desktop, Cursor, Windsurf, and any [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) client. Give your LLM or AI coding assistant the ability to generate styled PDFs and EPUB ebooks from Markdown. See the [Technical Reference for AI Agents](#technical-reference-for-ai-agents) section for structured integration details.
 
 ## Install
 
@@ -50,6 +50,23 @@ If installed locally (not globally), prefix commands with `npx`:
 ```bash
 npx md-bookify document.md
 ```
+
+### As an MCP Server (AI Agent Tool)
+
+Add to your Claude Code, Claude Desktop, Cursor, Windsurf, or any MCP-compatible AI assistant config:
+
+```json
+{
+  "mcpServers": {
+    "md-bookify": {
+      "command": "npx",
+      "args": ["-y", "md-bookify-mcp"]
+    }
+  }
+}
+```
+
+Then ask your AI agent to convert Markdown to PDF or EPUB — it will have access to 6 document generation tools. See [MCP Server](#mcp-server-ai-agent-integration) for full details.
 
 ## CLI Options
 
@@ -99,6 +116,7 @@ md-bookify report.md -s ./my-theme.css
 
 ## Features
 
+- **MCP server for AI agents** — 6 tools for Markdown-to-PDF and Markdown-to-EPUB conversion, compatible with Claude Code, Claude Desktop, Cursor, Windsurf, and any MCP client. Lets LLMs and AI coding assistants generate documents as part of agentic workflows
 - **GitHub Flavored Markdown** — tables, task lists, fenced code blocks, autolinks, strikethrough
 - **Syntax highlighting** — Prism.js with Dracula theme for PDF / a light theme for EPUB. Supports TypeScript, JavaScript, Python, Go, Rust, Java, Bash, JSON, CSS, HTML/XML, YAML, SQL, and Diff
 - **Math** — inline (`$E = mc^2$`) and display (`$$...$$`) via KaTeX. PDFs use KaTeX HTML rendering; EPUBs use MathML for better e-reader compatibility
@@ -184,7 +202,7 @@ await generatePdfToFile(doc, 'output.pdf', { format: 'A4' });
 
 ## MCP Server (AI Agent Integration)
 
-md-bookify includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server, allowing AI agents like Claude Code, Claude Desktop, or any MCP-compatible client to convert Markdown to PDF or EPUB directly as a tool.
+md-bookify includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that gives AI agents — Claude Code, Claude Desktop, Cursor, Windsurf, or any MCP-compatible LLM client — the ability to convert Markdown to PDF or EPUB as a tool. Use it to add document generation capabilities to your AI coding assistant or agentic workflow.
 
 ### Setup
 
@@ -235,7 +253,7 @@ If you have the repo cloned locally:
 
 ### Available Tools
 
-Once configured, the MCP server exposes 5 tools:
+Once configured, the MCP server exposes 6 tools:
 
 #### `convert_markdown_to_pdf`
 
@@ -250,6 +268,21 @@ Converts a markdown string to a PDF file on disk.
 | `style` | string | no | Style: `default`, `eink`, `eink-serif`, `elegant`, `serif`, or path to `.css` file |
 | `format` | string | no | Page format: `A4`, `Letter`, or `Legal` (default: `A4`) |
 | `landscape` | boolean | no | Use landscape orientation |
+
+#### `convert_markdown_to_pdf_buffer`
+
+Converts a markdown string to PDF and returns the result as base64-encoded data instead of writing to disk. Useful when you need the PDF content directly (e.g., to pass to another tool or embed in a response). For large documents, prefer `convert_markdown_to_pdf` to write directly to disk.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `markdown` | string | yes | Markdown content to convert |
+| `title` | string | no | Document title (default: "Document") |
+| `author` | string | no | Author name |
+| `style` | string | no | Style: `default`, `eink`, `eink-serif`, `elegant`, `serif`, or path to `.css` file |
+| `format` | string | no | Page format: `A4`, `Letter`, or `Legal` (default: `A4`) |
+| `landscape` | boolean | no | Use landscape orientation |
+
+Returns an `EmbeddedResource` with `mimeType: "application/pdf"` and base64-encoded `blob`.
 
 #### `convert_markdown_to_epub`
 
@@ -509,7 +542,7 @@ src/
   epub.ts           — HTML → EPUB (epub-gen-memory) + local image file:// rewriting + remote image fetching
   styles.ts         — CSS constants, style resolution, KaTeX CSS loader
   styles/           — built-in .css theme files (PDF only)
-  mcp-server.ts     — MCP server (5 tools: convert/list)
+  mcp-server.ts     — MCP server (6 tools: convert/list, with ToolAnnotations)
 bin/
   md-bookify.ts     — CLI entry point (Commander, with `epub` subcommand)
 tests/              — Vitest test files
