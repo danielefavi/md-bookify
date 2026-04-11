@@ -1,10 +1,12 @@
 ---
 name: bookify
 description: Convert Markdown files to styled PDF or EPUB ebook using md-bookify. Use when the user wants to generate a PDF document or EPUB ebook from markdown content or files.
+source: https://www.npmjs.com/package/md-bookify
+version: 2.2.1
 argument-hint: <file.md> [pdf|epub]
 allowed-tools:
-  - Bash(npx md-bookify *)
-  - Bash(npx puppeteer browsers install chrome)
+  - Bash(npx md-bookify@2.2.1 *)
+  - Bash(npx puppeteer@24 browsers install chrome)
   - Read
   - Glob
 ---
@@ -23,7 +25,7 @@ Use the `md-bookify` npm package via `npx` to convert Markdown files to styled P
 ## PDF Conversion
 
 ```bash
-npx md-bookify <input.md> [options]
+npx md-bookify@2.2.1 <input.md> [options]
 ```
 
 **Options:**
@@ -41,7 +43,7 @@ npx md-bookify <input.md> [options]
 ## EPUB Conversion
 
 ```bash
-npx md-bookify epub <input.md> [options]
+npx md-bookify@2.2.1 epub <input.md> [options]
 ```
 
 **Options:**
@@ -65,9 +67,9 @@ npx md-bookify epub <input.md> [options]
 | `eink` | Optimized for e-ink displays, high contrast |
 | `eink-serif` | Serif variant optimized for e-ink readers |
 
-Use with `-s`: `npx md-bookify file.md -s elegant`
+Use with `-s`: `npx md-bookify@2.2.1 file.md -s elegant`
 
-You can also pass a path to any `.css` file: `npx md-bookify file.md -s ./custom.css`
+You can also pass a path to any `.css` file: `npx md-bookify@2.2.1 file.md -s ./custom.css`
 
 ## Supported Markdown Features
 
@@ -78,7 +80,7 @@ You can also pass a path to any `.css` file: `npx md-bookify file.md -s ./custom
 
 ## Error Recovery
 
-- **Chromium not found:** Run `npx puppeteer browsers install chrome`
+- **Chromium not found:** Run `npx puppeteer@24 browsers install chrome`
 - **File not found:** Verify the path exists. Use Glob to search for markdown files if needed.
 - **Node version:** Requires Node >= 20
 
@@ -86,17 +88,17 @@ You can also pass a path to any `.css` file: `npx md-bookify file.md -s ./custom
 
 ```bash
 # Basic PDF
-npx md-bookify README.md
+npx md-bookify@2.2.1 README.md
 
 # Styled PDF with author
-npx md-bookify report.md -s elegant --author "Jane Doe" -o output/report.pdf
+npx md-bookify@2.2.1 report.md -s elegant --author "Jane Doe" -o output/report.pdf
 
 # US Letter format, landscape
-npx md-bookify data.md -f Letter --landscape
+npx md-bookify@2.2.1 data.md -f Letter --landscape
 
 # EPUB ebook with cover
-npx md-bookify novel.md epub --author "Author Name" --cover cover.jpg
+npx md-bookify@2.2.1 novel.md epub --author "Author Name" --cover cover.jpg
 
 # EPUB with metadata
-npx md-bookify docs.md epub -t "User Guide" --publisher "Acme Corp" --description "Complete user guide"
+npx md-bookify@2.2.1 docs.md epub -t "User Guide" --publisher "Acme Corp" --description "Complete user guide"
 ```
