@@ -343,6 +343,8 @@ md-bookify includes a [Claude Code skill](https://docs.anthropic.com/en/docs/cla
 
 The skill runs `npx md-bookify`, so no prior installation is needed — npm will download it on first use.
 
+The skill is also available for [OpenClaw](https://openclaw.ai) in the [ClawHub skill market](https://clawhub.ai/danielefavi/bookify).
+
 ### Project-specific
 
 Copy the skill into any project's `.claude/skills/` directory:
