@@ -870,7 +870,7 @@ async function convertMdToEpub(inputPath, options) {
 
 // bin/md-bookify.ts
 function getVersion() {
-  return "2.2.0";
+  return "2.2.1";
 }
 var program = new Command();
 program.enablePositionalOptions();

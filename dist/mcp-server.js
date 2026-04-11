@@ -897,7 +897,7 @@ async function convertMarkdownToEpubBuffer(markdown, options) {
 // src/mcp-server.ts
 function getVersion() {
   try {
-    return "2.2.0";
+    return "2.2.1";
   } catch {
     return "0.0.0-dev";
   }
