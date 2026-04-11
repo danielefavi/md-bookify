@@ -337,6 +337,38 @@ Lists available built-in PDF styles. Takes no parameters.
 - **Output directories**: Parent directories are created automatically if they don't exist.
 - **Relative paths**: Paths are resolved relative to the MCP server's working directory.
 
+## Claude Code Skill
+
+md-bookify includes a [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code/skills) at `.claude/skills/bookify/SKILL.md` that lets you invoke `/bookify` as a slash command — e.g. `/bookify README.md` or `/bookify report.md epub`.
+
+The skill runs `npx md-bookify`, so no prior installation is needed — npm will download it on first use.
+
+### Project-specific
+
+Copy the skill into any project's `.claude/skills/` directory:
+
+```bash
+mkdir -p <your-project>/.claude/skills/bookify
+curl -fsSL https://raw.githubusercontent.com/danielefavi/md-bookify/main/.claude/skills/bookify/SKILL.md \
+  -o <your-project>/.claude/skills/bookify/SKILL.md
+```
+
+The skill will be available only within that project. Commit it to share with your team.
+
+### Global (all projects)
+
+Copy the skill to your personal Claude Code skills directory:
+
+```bash
+mkdir -p ~/.claude/skills/bookify
+curl -fsSL https://raw.githubusercontent.com/danielefavi/md-bookify/main/.claude/skills/bookify/SKILL.md \
+  -o ~/.claude/skills/bookify/SKILL.md
+```
+
+The `/bookify` command will then be available in every project.
+
+> **Note:** If the skill exists in both locations, the project-specific version takes precedence.
+
 ## Development
 
 ```bash
