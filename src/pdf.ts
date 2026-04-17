@@ -12,6 +12,7 @@ export interface PdfOptions {
   printBackground?: boolean;
   basePath?: string;
   author?: string;
+  noSandbox?: boolean;
 }
 
 const DEFAULT_MARGIN = { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' };
@@ -19,7 +20,7 @@ const DEFAULT_MARGIN = { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm
 export async function generatePdf(html: string, options?: PdfOptions): Promise<Buffer> {
   const browser = await puppeteer.launch({
     headless: true,
-    args: process.env.CI ? ['--no-sandbox', '--disable-setuid-sandbox'] : [],
+    args: (options?.noSandbox || process.env.CI) ? ['--no-sandbox', '--disable-setuid-sandbox'] : [],
   });
   let tempDir: string | undefined;
   try {

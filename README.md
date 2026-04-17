@@ -82,6 +82,7 @@ Then ask your AI agent to convert Markdown to PDF or EPUB — it will have acces
 | `--margin-bottom <margin>` | Bottom margin (CSS units) | `20mm` |
 | `--margin-left <margin>` | Left margin (CSS units) | `20mm` |
 | `--author <name>` | Author metadata | `Unknown` |
+| `--no-sandbox` | Disable Chromium sandbox (required in Docker/containers) | `false` |
 | `-l, --list-styles` | List available built-in styles | |
 
 ### EPUB subcommand
@@ -268,6 +269,7 @@ Converts a markdown string to a PDF file on disk.
 | `style` | string | no | Style: `default`, `eink`, `eink-serif`, `elegant`, `serif`, or path to `.css` file |
 | `format` | string | no | Page format: `A4`, `Letter`, or `Legal` (default: `A4`) |
 | `landscape` | boolean | no | Use landscape orientation |
+| `no_sandbox` | boolean | no | Disable Chromium sandbox (required in Docker/containers) |
 
 #### `convert_markdown_to_pdf_buffer`
 
@@ -281,6 +283,7 @@ Converts a markdown string to PDF and returns the result as base64-encoded data 
 | `style` | string | no | Style: `default`, `eink`, `eink-serif`, `elegant`, `serif`, or path to `.css` file |
 | `format` | string | no | Page format: `A4`, `Letter`, or `Legal` (default: `A4`) |
 | `landscape` | boolean | no | Use landscape orientation |
+| `no_sandbox` | boolean | no | Disable Chromium sandbox (required in Docker/containers) |
 
 Returns an `EmbeddedResource` with `mimeType: "application/pdf"` and base64-encoded `blob`.
 
@@ -311,6 +314,7 @@ Converts a markdown file on disk to PDF. Resolves relative image paths from the 
 | `style` | string | no | Style name or path to `.css` file |
 | `format` | string | no | Page format: `A4`, `Letter`, or `Legal` (default: `A4`) |
 | `landscape` | boolean | no | Use landscape orientation |
+| `no_sandbox` | boolean | no | Disable Chromium sandbox (required in Docker/containers) |
 
 #### `convert_file_to_epub`
 
@@ -461,7 +465,7 @@ function generatePdf(html: string, options?: PdfOptions): Promise<Buffer>
 // Launches headless Chromium via Puppeteer.
 // If basePath is set: writes HTML to temp file with <base href> for relative image resolution.
 // Otherwise: uses page.setContent.
-// Adds --no-sandbox flags when process.env.CI is set.
+// Adds --no-sandbox flags when noSandbox option is set or process.env.CI is set.
 
 function generatePdfToFile(html: string, outputPath: string, options?: PdfOptions): Promise<void>
 // Calls generatePdf, writes buffer to outputPath.
@@ -473,6 +477,7 @@ interface PdfOptions {
   printBackground?: boolean                      // default: true
   basePath?: string                              // directory for resolving relative image paths
   author?: string                                // default: 'Unknown'. Sets PDF Author + Creator via pdf-lib.
+  noSandbox?: boolean                            // disable Chromium sandbox (required in Docker/containers)
 }
 
 // --- EPUB template (src/epub-template.ts) ---
@@ -532,6 +537,7 @@ interface ConvertOptions {
   landscape?: boolean
   margin?: { top?: string; right?: string; bottom?: string; left?: string }
   author?: string                                // default: 'Unknown'
+  noSandbox?: boolean                            // disable Chromium sandbox (required in Docker/containers)
 }
 
 function convertMdToEpub(inputPath: string, options?: ConvertEpubOptions): Promise<string>
@@ -624,6 +630,7 @@ PDF options (default command):
   --margin-right <margin>  Right margin (default: 20mm)
   --margin-bottom <margin> Bottom margin (default: 20mm)
   --margin-left <margin>   Left margin (default: 20mm)
+  --no-sandbox             Disable Chromium sandbox (required in Docker/containers)
   -l, --list-styles        List available built-in styles
   -V, --version            Output version number
   -h, --help               Display help

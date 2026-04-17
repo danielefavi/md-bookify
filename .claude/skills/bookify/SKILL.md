@@ -39,6 +39,7 @@ npx md-bookify@2.2.1 <input.md> [options]
 - `--margin-right <margin>` — Right margin
 - `--margin-bottom <margin>` — Bottom margin
 - `--margin-left <margin>` — Left margin
+- `--no-sandbox` — Disable Chromium sandbox (required in Docker/containers)
 
 ## EPUB Conversion
 

@@ -26,6 +26,7 @@ export interface ConvertOptions {
   landscape?: boolean;
   margin?: PdfOptions['margin'];
   author?: string;
+  noSandbox?: boolean;
 }
 
 export async function convertMdToPdf(inputPath: string, options?: ConvertOptions): Promise<string> {
@@ -39,6 +40,7 @@ export async function convertMdToPdf(inputPath: string, options?: ConvertOptions
     landscape: options?.landscape,
     margin: options?.margin,
     author: options?.author,
+    noSandbox: options?.noSandbox,
     basePath: resolve(dirname(inputPath)),
   });
   return outputPath;
@@ -53,6 +55,7 @@ export async function convertMarkdownToPdfBuffer(markdown: string, options?: Con
     landscape: options?.landscape,
     margin: options?.margin,
     author: options?.author,
+    noSandbox: options?.noSandbox,
   });
 }
 

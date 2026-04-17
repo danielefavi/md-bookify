@@ -35,6 +35,7 @@ program
   .option('--margin-bottom <margin>', 'Bottom margin (e.g. 20mm)')
   .option('--margin-left <margin>', 'Left margin (e.g. 20mm)')
   .option('-s, --style <name-or-path>', `Style name (${getBuiltInStyles().join(', ')}) or path to .css file`)
+  .option('--no-sandbox', 'Disable Chromium sandbox (required in Docker/containers)')
   .option('-l, --list-styles', 'List available styles')
   .action(async (input: string | undefined, opts: Record<string, string | boolean | undefined>) => {
     try {
@@ -66,6 +67,7 @@ program
         style: opts.style as string | undefined,
         format: opts.format as 'A4' | 'Letter' | 'Legal' | undefined,
         landscape: opts.landscape as boolean | undefined,
+        noSandbox: opts.noSandbox as boolean | undefined,
         margin,
       });
       console.log(`PDF saved to ${outputPath}`);

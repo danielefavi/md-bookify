@@ -54,6 +54,7 @@ server.tool(
     style: z.string().optional().describe('Built-in style name (default, eink, eink-serif, elegant, serif) or absolute path to a .css file. Styles only affect PDF output.'),
     format: z.enum(['A4', 'Letter', 'Legal']).optional().describe('Page format (default: A4). Use Letter for US standard, Legal for legal documents.'),
     landscape: z.boolean().optional().describe('Use landscape orientation (good for wide tables or code)'),
+    no_sandbox: z.boolean().optional().describe('Disable Chromium sandbox (required in Docker/containers)'),
   },
   {
     readOnlyHint: false,
@@ -61,7 +62,7 @@ server.tool(
     idempotentHint: true,
     openWorldHint: false,
   },
-  async ({ markdown, output_path, title, author, style, format, landscape }) => {
+  async ({ markdown, output_path, title, author, style, format, landscape, no_sandbox }) => {
     try {
       const outputPath = resolvePath(output_path);
       await ensureDir(outputPath);
@@ -71,6 +72,7 @@ server.tool(
         style,
         format,
         landscape,
+        noSandbox: no_sandbox,
       });
       await writeFile(outputPath, buffer);
       return { content: [{ type: 'text' as const, text: `PDF saved to ${outputPath} (${buffer.length} bytes)` }] };
@@ -92,6 +94,7 @@ server.tool(
     style: z.string().optional().describe('Built-in style name (default, eink, eink-serif, elegant, serif) or path to a .css file.'),
     format: z.enum(['A4', 'Letter', 'Legal']).optional().describe('Page format (default: A4). Use Letter for US standard, Legal for legal documents.'),
     landscape: z.boolean().optional().describe('Use landscape orientation'),
+    no_sandbox: z.boolean().optional().describe('Disable Chromium sandbox (required in Docker/containers)'),
   },
   {
     readOnlyHint: true,
@@ -99,7 +102,7 @@ server.tool(
     idempotentHint: true,
     openWorldHint: false,
   },
-  async ({ markdown, title, author, style, format, landscape }) => {
+  async ({ markdown, title, author, style, format, landscape, no_sandbox }) => {
     try {
       const buffer = await convertMarkdownToPdfBuffer(markdown, {
         title,
@@ -107,6 +110,7 @@ server.tool(
         style,
         format,
         landscape,
+        noSandbox: no_sandbox,
       });
       return {
         content: [{
@@ -176,6 +180,7 @@ server.tool(
     style: z.string().optional().describe('Built-in style name (default, eink, eink-serif, elegant, serif) or absolute path to a .css file. Styles only affect PDF output.'),
     format: z.enum(['A4', 'Letter', 'Legal']).optional().describe('Page format (default: A4). Use Letter for US standard, Legal for legal documents.'),
     landscape: z.boolean().optional().describe('Use landscape orientation (good for wide tables or code)'),
+    no_sandbox: z.boolean().optional().describe('Disable Chromium sandbox (required in Docker/containers)'),
   },
   {
     readOnlyHint: false,
@@ -183,7 +188,7 @@ server.tool(
     idempotentHint: true,
     openWorldHint: false,
   },
-  async ({ input_path, output_path, title, author, style, format, landscape }) => {
+  async ({ input_path, output_path, title, author, style, format, landscape, no_sandbox }) => {
     try {
       const inputPath = resolvePath(input_path);
       const result = await convertMdToPdf(inputPath, {
@@ -193,6 +198,7 @@ server.tool(
         style,
         format,
         landscape,
+        noSandbox: no_sandbox,
       });
       const size = await fileSize(result);
       return { content: [{ type: 'text' as const, text: `PDF saved to ${result} (${size} bytes)` }] };

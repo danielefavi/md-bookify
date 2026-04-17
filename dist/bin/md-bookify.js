@@ -265,7 +265,7 @@ var DEFAULT_MARGIN = { top: "20mm", right: "20mm", bottom: "20mm", left: "20mm" 
 async function generatePdf(html, options) {
   const browser = await puppeteer.launch({
     headless: true,
-    args: process.env.CI ? ["--no-sandbox", "--disable-setuid-sandbox"] : []
+    args: options?.noSandbox || process.env.CI ? ["--no-sandbox", "--disable-setuid-sandbox"] : []
   });
   let tempDir;
   try {
@@ -846,6 +846,7 @@ async function convertMdToPdf(inputPath, options) {
     landscape: options?.landscape,
     margin: options?.margin,
     author: options?.author,
+    noSandbox: options?.noSandbox,
     basePath: resolve(dirname(inputPath))
   });
   return outputPath;
@@ -870,11 +871,11 @@ async function convertMdToEpub(inputPath, options) {
 
 // bin/md-bookify.ts
 function getVersion() {
-  return "2.2.1";
+  return "2.3.0";
 }
 var program = new Command();
 program.enablePositionalOptions();
-program.name("md-bookify").description("Convert Markdown files to styled PDF documents or EPUB ebooks").version(getVersion()).argument("[input]", "Markdown file to convert").option("-o, --output <path>", "Output PDF file path").option("-t, --title <title>", "Document title").option("--author <name>", "Author name").option("-f, --format <format>", "Page format (A4, Letter, Legal)", "A4").option("--landscape", "Use landscape orientation").option("--margin-top <margin>", "Top margin (e.g. 20mm)").option("--margin-right <margin>", "Right margin (e.g. 20mm)").option("--margin-bottom <margin>", "Bottom margin (e.g. 20mm)").option("--margin-left <margin>", "Left margin (e.g. 20mm)").option("-s, --style <name-or-path>", `Style name (${getBuiltInStyles().join(", ")}) or path to .css file`).option("-l, --list-styles", "List available styles").action(async (input, opts) => {
+program.name("md-bookify").description("Convert Markdown files to styled PDF documents or EPUB ebooks").version(getVersion()).argument("[input]", "Markdown file to convert").option("-o, --output <path>", "Output PDF file path").option("-t, --title <title>", "Document title").option("--author <name>", "Author name").option("-f, --format <format>", "Page format (A4, Letter, Legal)", "A4").option("--landscape", "Use landscape orientation").option("--margin-top <margin>", "Top margin (e.g. 20mm)").option("--margin-right <margin>", "Right margin (e.g. 20mm)").option("--margin-bottom <margin>", "Bottom margin (e.g. 20mm)").option("--margin-left <margin>", "Left margin (e.g. 20mm)").option("-s, --style <name-or-path>", `Style name (${getBuiltInStyles().join(", ")}) or path to .css file`).option("--no-sandbox", "Disable Chromium sandbox (required in Docker/containers)").option("-l, --list-styles", "List available styles").action(async (input, opts) => {
   try {
     if (opts.listStyles) {
       console.log("Available styles:\n");
@@ -900,6 +901,7 @@ program.name("md-bookify").description("Convert Markdown files to styled PDF doc
       style: opts.style,
       format: opts.format,
       landscape: opts.landscape,
+      noSandbox: opts.noSandbox,
       margin
     });
     console.log(`PDF saved to ${outputPath}`);

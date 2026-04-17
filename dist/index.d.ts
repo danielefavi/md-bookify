@@ -10,6 +10,7 @@ interface PdfOptions {
     printBackground?: boolean;
     basePath?: string;
     author?: string;
+    noSandbox?: boolean;
 }
 declare function generatePdf(html: string, options?: PdfOptions): Promise<Buffer>;
 declare function generatePdfToFile(html: string, outputPath: string, options?: PdfOptions): Promise<void>;
@@ -138,6 +139,7 @@ interface ConvertOptions {
     landscape?: boolean;
     margin?: PdfOptions['margin'];
     author?: string;
+    noSandbox?: boolean;
 }
 declare function convertMdToPdf(inputPath: string, options?: ConvertOptions): Promise<string>;
 declare function convertMarkdownToPdfBuffer(markdown: string, options?: ConvertOptions): Promise<Buffer>;
