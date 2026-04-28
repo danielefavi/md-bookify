@@ -1,5 +1,6 @@
 node_modules/
 CLAUDE.md
+AGENTS.md
 .claude/settings.local.json
 .claude/todos/
 .claude/statsig/
@@ -8,4 +9,3 @@ test-markdown-pdf.epub
 test-markdown-pdf.pdf
 test-markdown-epub.epub
 test-markdown-epub.pdf
-TODO.md

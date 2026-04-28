@@ -183,6 +183,15 @@ if __name__ == "__main__":
 }
 ```
 
+```markdown
+# Markdown Fenced Block
+
+## Sub Title
+
+Lorem ipsum dolor sit amet, **consectetur adipiscing elit**. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.
+
+```
+
 ```sql
 -- SQL example
 SELECT
