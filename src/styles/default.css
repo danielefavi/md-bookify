@@ -19,7 +19,7 @@
     body {
       background-color: #fff;
       color: #202124;
-      font-family: "Open Sans", "Noto Sans", Frutiger, Calibri, Myriad, Arial, Ubuntu, Helvetica, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: "Open Sans", "Noto Sans", Frutiger, Calibri, Myriad, Arial, Ubuntu, Helvetica, -apple-system, BlinkMacSystemFont, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
       max-width: 800px;
       margin: 0 auto;
       line-height: 1.6;
@@ -123,6 +123,11 @@
       font-family: Hack, Consolas, "Andale Mono", "Lucida Console", "Liberation Mono", "Courier New", Courier, monospace !important;
       font-size: 9pt !important;
       margin-bottom: 16px !important;
+    }
+
+    pre:not([class*="language-"]) code[class*="language-"] {
+      color: #202124 !important;
+      text-shadow: none !important;
     }
 
     table {

@@ -34,7 +34,7 @@
 body {
 	background-color: #fff;
 	color: #000;
-	font-family: "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
 	font-weight: 400;
 	font-size: 13pt;
 	max-width: 800px;

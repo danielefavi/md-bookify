@@ -1,6 +1,6 @@
 {
   "name": "md-bookify",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "MCP server and CLI tool to convert Markdown to PDF or EPUB ebooks — with syntax highlighting (Prism), math (KaTeX), and GitHub Flavored Markdown. Also usable as a Node.js library.",
   "author": "Daniele Favi",
   "repository": {                                                                                          

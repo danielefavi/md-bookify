@@ -25,7 +25,7 @@
 body {
 	background-color: #fff;
 	color: #202124;
-	font: 1em "Vollkorn", Palatino, Times;
+	font: 1em "Vollkorn", Palatino, Times, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
 	max-width: 800px;
 	margin: 0 auto;
 	line-height: 1.4;
